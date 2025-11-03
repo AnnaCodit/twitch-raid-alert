@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Терминальная карточка</title>
+    <style>
+        /* === Общие стили страницы === */
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+            overflow: hidden;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* === Эффект мерцания экрана === */
+        @keyframes flicker {
+
+            0%,
+            18%,
+            22%,
+            25%,
+            53%,
+            57%,
+            100% {
+                opacity: 1;
+            }
+
+            20%,
+            24%,
+            55% {
+                opacity: 0.6;
+            }
+        }
+
+        /* === Эффект вертикальных шумовых линий (CRT) === */
+        @keyframes scanlines {
+            0% {
+                background-position: 0 0;
+            }
+
+            100% {
+                background-position: 0 100%;
+            }
+        }
+
+        /* === Контейнер карточки === */
+        .card {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            width: 800px;
+            height: 300px;
+            padding: 20px;
+            border: 2px solid #00ff66;
+            border-radius: 12px;
+            box-shadow: 0 0 25px #00ff66, inset 0 0 10px #00ff66;
+            color: #00ff66;
+            animation: flicker 2s infinite;
+            background: rgba(0, 20, 0, 0.5);
+            backdrop-filter: blur(1px);
+        }
+
+        /* CRT шум поверх */
+        .card::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(to bottom,
+                    rgba(0, 255, 100, 0.05) 0px,
+                    rgba(0, 255, 100, 0.05) 1px,
+                    transparent 2px,
+                    transparent 3px);
+            animation: scanlines 1s linear infinite;
+            pointer-events: none;
+        }
+
+        /* === Изображение === */
+        .card img {
+            width: 200px;
+            height: 200px;
+            object-fit: cover;
+            margin-right: 40px;
+            border: 2px solid #00ff66;
+            border-radius: 8px;
+            box-shadow: 0 0 15px #00ff66;
+            filter: brightness(1.1) contrast(1.2);
+            animation: flicker 3s infinite;
+        }
+
+        /* === Текстовая часть === */
+        .text-block {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .text-line {
+            font-size: 28px;
+            font-weight: bold;
+            text-shadow:
+                0 0 5px #00ff66,
+                0 0 10px #00ff66,
+                0 0 20px #00ff66;
+            letter-spacing: 1px;
+            animation: textglow 1.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes textglow {
+            from {
+                text-shadow: 0 0 5px #00ff66, 0 0 10px #00ff66;
+            }
+
+            to {
+                text-shadow: 0 0 20px #00ff66, 0 0 40px #00ff66;
+            }
+        }
+
+        /* === Эффект случайного искрения (редкое мигание) === */
+        @keyframes spark {
+
+            0%,
+            97%,
+            100% {
+                opacity: 1;
+            }
+
+            98%,
+            99% {
+                opacity: 0;
+            }
+        }
+
+        .spark {
+            position: absolute;
+            top: 10%;
+            left: 80%;
+            width: 3px;
+            height: 3px;
+            background: #00ff66;
+            box-shadow: 0 0 10px #00ff66, 0 0 20px #00ff66;
+            border-radius: 50%;
+            animation: spark 5s infinite;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="card">
+        <div class="spark"></div>
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5f/Green_terminal_screen.jpg/320px-Green_terminal_screen.jpg"
+            alt="Терминал">
+        <div class="text-block">
+            <div class="text-line">> ACCESS GRANTED</div>
+            <div class="text-line">> INITIALIZING SEQUENCE...</div>
+            <div class="text-line">> WELCOME, OPERATIVE_77</div>
+        </div>
+    </div>
+</body>
+
+</html>

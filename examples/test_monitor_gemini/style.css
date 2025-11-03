@@ -1,0 +1,144 @@
+/* Переменные для цветов */
+:root {
+    --bg-color: #000000;
+    --terminal-green: #39ff14; /* Кислотно-зеленый */
+    --shadow-color: #0cff2a;  /* Более яркий для свечения */
+    --card-bg: #030303;
+    --border-color: #0c821f;
+}
+
+body {
+    background-color: var(--bg-color);
+    display: flex;
+    justify-content: center; /* Центрирование по горизонтали */
+    align-items: center; /* Центрирование по вертикали */
+    min-height: 100vh; /* Высота на весь экран */
+    margin: 0;
+    font-family: 'Consolas', 'Monaco', monospace; /* Моноширинный шрифт */
+    color: var(--terminal-green);
+    /* Эффект старого монитора: легкий градиент */
+    background-image: radial-gradient(rgba(0, 150, 0, 0.15), var(--bg-color) 120%);
+}
+
+.terminal-card {
+    display: flex;
+    width: 700px; /* Ширина карточки */
+    border: 2px solid var(--border-color);
+    box-shadow: 0 0 15px var(--shadow-color), inset 0 0 10px var(--shadow-color);
+    background-color: var(--card-bg);
+    padding: 20px;
+    position: relative;
+    /* Анимация пульсации или свечения всей карточки */
+    animation: neon-glow 2s infinite alternate ease-in-out;
+}
+
+.card-image-section {
+    flex: 1;
+    padding-right: 20px;
+    border-right: 1px dashed var(--border-color);
+}
+
+.terminal-image {
+    width: 100%;
+    height: auto;
+    display: block;
+    /* Эффект свечения изображения */
+    box-shadow: 0 0 8px var(--shadow-color);
+}
+
+.card-text-section {
+    flex: 2;
+    padding-left: 20px;
+}
+
+.text-line {
+    font-size: 1.5em; /* Крупный текст */
+    margin: 15px 0;
+    text-shadow: 0 0 5px var(--shadow-color); /* Свечение текста */
+}
+
+/* === Анимации === */
+
+/* 1. Общее свечение карточки (пульсация) */
+@keyframes neon-glow {
+    from {
+        box-shadow: 0 0 5px var(--shadow-color), inset 0 0 5px var(--shadow-color);
+        border-color: var(--border-color);
+    }
+    to {
+        box-shadow: 0 0 25px var(--shadow-color), inset 0 0 15px var(--shadow-color);
+        border-color: var(--terminal-green);
+    }
+}
+
+/* 2. Эффект медленного мерцания (flicker-slow) */
+.flicker-slow {
+    animation: flicker-slow 4s infinite alternate;
+}
+
+@keyframes flicker-slow {
+    0%, 18%, 22%, 25%, 53%, 57%, 100% {
+        opacity: 1;
+        text-shadow: 0 0 5px var(--shadow-color);
+    }
+    20%, 24%, 55% {
+        opacity: 0.5;
+        text-shadow: none;
+    }
+}
+
+/* 3. Эффект быстрого мерцания (flicker-fast) */
+.flicker-fast {
+    animation: flicker-fast 0.1s infinite alternate;
+}
+
+@keyframes flicker-fast {
+    0% { opacity: 1; }
+    50% { opacity: 0.8; }
+    100% { opacity: 1; }
+}
+
+/* 4. Эффект глитча (glitch) */
+.glitch {
+    position: relative;
+    animation: glitch 1.5s infinite alternate;
+}
+
+@keyframes glitch {
+    0% {
+        transform: translate(0);
+    }
+    20% {
+        transform: translate(-2px, 2px);
+    }
+    40% {
+        transform: translate(-2px, -2px);
+    }
+    60% {
+        transform: translate(2px, 2px);
+    }
+    80% {
+        transform: translate(2px, -2px);
+    }
+    100% {
+        transform: translate(0);
+    }
+}
+
+/* Эффект сканирующих линий (добавляет аутентичности) */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        rgba(18, 16, 16, 0.1) 1px,
+        transparent 2px
+    );
+    opacity: 0.5;
+}
