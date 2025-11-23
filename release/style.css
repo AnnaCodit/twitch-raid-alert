@@ -12,7 +12,24 @@ body {
 }
 
 /* === Мерцание экрана === */
-@keyframes flicker { 0%, 18%, 22%, 25%, 53%, 57%, 100% { opacity: 1; } 20%, 24%, 55% { opacity: 0.6; } }
+@keyframes flicker {
+
+    0%,
+    18%,
+    22%,
+    25%,
+    53%,
+    57%,
+    100% {
+        opacity: 1;
+    }
+
+    20%,
+    24%,
+    55% {
+        opacity: 0.6;
+    }
+}
 
 /* === Шумовые горизонтальные линии === */
 @keyframes scanlines {
@@ -26,7 +43,48 @@ body {
 }
 
 /* === Плавная дрожь (уменьшенная) === */
-@keyframes glitch{0%{transform:translate(0,0)skew(0deg,0deg)}10%{transform:translate(-1px,0.5px)skew(-0.3deg,0.2deg)}20%{transform:translate(0.5px,-0.5px)skew(0.2deg,-0.2deg)}30%{transform:translate(-0.5px,0)skew(0deg,0.3deg)}40%{transform:translate(1px,-0.5px)skew(-0.3deg,-0.2deg)}50%{transform:translate(0,0.5px)skew(0.2deg,0deg)}60%{transform:translate(-0.5px,0)skew(0deg,0.2deg)}70%{transform:translate(0.5px,-0.5px)skew(-0.2deg,0deg)}80%{transform:translate(-0.5px,0.5px)skew(0deg,-0.2deg)}90%,100%{transform:translate(0,0)skew(0deg,0deg)}}
+@keyframes glitch {
+    0% {
+        transform: translate(0, 0)skew(0deg, 0deg)
+    }
+
+    10% {
+        transform: translate(-1px, 0.5px)skew(-0.3deg, 0.2deg)
+    }
+
+    20% {
+        transform: translate(0.5px, -0.5px)skew(0.2deg, -0.2deg)
+    }
+
+    30% {
+        transform: translate(-0.5px, 0)skew(0deg, 0.3deg)
+    }
+
+    40% {
+        transform: translate(1px, -0.5px)skew(-0.3deg, -0.2deg)
+    }
+
+    50% {
+        transform: translate(0, 0.5px)skew(0.2deg, 0deg)
+    }
+
+    60% {
+        transform: translate(-0.5px, 0)skew(0deg, 0.2deg)
+    }
+
+    70% {
+        transform: translate(0.5px, -0.5px)skew(-0.2deg, 0deg)
+    }
+
+    80% {
+        transform: translate(-0.5px, 0.5px)skew(0deg, -0.2deg)
+    }
+
+    90%,
+    100% {
+        transform: translate(0, 0)skew(0deg, 0deg)
+    }
+}
 
 /* === Редкие горизонтальные глитчи === */
 @keyframes glitchLines {
@@ -115,11 +173,14 @@ body {
     animation: flicker 3s infinite;
     position: relative;
 }
+
 .raid-card .avatar::before {
     content: "";
     position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     background: rgba(0, 255, 100, 0.05);
     /* animation: scanlines 1s linear infinite; */
     pointer-events: none;
@@ -196,6 +257,7 @@ body {
 }
 
 @keyframes spark {
+
     0%,
     97%,
     100% {
@@ -220,24 +282,35 @@ body {
     animation: spark 5s infinite;
 }
 
-.text-line::before { margin-right: 20px; }
+.text-line::before {
+    margin-right: 20px;
+}
 
 .raid-nickname {
     font-size: 60px;
     text-transform: uppercase;
-    font-weight: bold;    
+    font-weight: bold;
 }
-.raid-nickname::before { content: ">"; }
+
+.raid-nickname::before {
+    content: ">";
+}
 
 .raid-stream-title {
     margin-top: -10px;
     margin-bottom: 10px;
 }
-.raid-stream-title::before { content: ">"; }
+
+.raid-stream-title::before {
+    content: ">";
+}
 
 
 .raid-stream-category {
     color: #b8ffd4;
 }
 
-.raid-viewers, .raid-description { display: none;}
+.raid-viewers,
+.raid-description {
+    display: none;
+}

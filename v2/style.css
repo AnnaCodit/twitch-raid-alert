@@ -1,14 +1,19 @@
+:root {
+    --primary-color: #00ff66;
+    --secondary-color: #b8ffd4;
+}
+
 body {
     margin: 0;
     height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: transparent;
+    background: black;
     overflow: hidden;
     font-family: 'Courier New', monospace;
-    /* background: url('../images/fon.png') no-repeat center center;
-    background-size: cover; */
+    background: url('https://www.filterblade.xyz/assets/img/Background_Voll.jpg') no-repeat center center;
+    background-size: cover;
 }
 
 /* === Мерцание экрана === */
@@ -30,6 +35,26 @@ body {
         opacity: 0.6;
     }
 }
+
+/* Эффект быстрого мерцания (flicker-fast) */
+.flicker-fast {
+    animation: flicker-fast 0.1s infinite alternate;
+}
+
+@keyframes flicker-fast {
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.8;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}
+
 
 /* === Шумовые горизонтальные линии === */
 @keyframes scanlines {
@@ -133,8 +158,7 @@ body {
     display: flex;
     align-items: flex-start;
     justify-content: flex-start;
-    min-width: 800px;
-    max-width: 1200px;
+    max-width: 920px;
     padding: 30px;
     border: 2px solid #00ff66;
     border-radius: 12px;
@@ -142,7 +166,6 @@ body {
     color: #00ff66;
     background: rgba(0, 20, 0, 0.85);
     backdrop-filter: blur(1px);
-    overflow: hidden;
     animation: glitch 0.5s infinite linear;
 }
 
@@ -238,11 +261,15 @@ body {
 .text-line {
     font-size: 28px;
     font-weight: bold;
-    text-shadow:
+    /* text-shadow:
         0 0 5px #00ff66,
         0 0 10px #00ff66,
-        0 0 20px #00ff66;
+        0 0 20px #00ff66; */
     letter-spacing: 1px;
+    /* animation: textglow 1.5s ease-in-out infinite alternate; */
+}
+
+.text-glow {
     animation: textglow 1.5s ease-in-out infinite alternate;
 }
 
@@ -290,14 +317,17 @@ body {
     font-size: 60px;
     text-transform: uppercase;
     font-weight: bold;
+    color: var(--secondary-color);
+    word-break: break-all;
+    margin-top: -10px;
 }
 
 .raid-nickname::before {
-    content: ">";
+    /* content: ">"; */
 }
 
 .raid-stream-title {
-    margin-top: -10px;
+    margin-top: -8px;
     margin-bottom: 10px;
 }
 
@@ -310,7 +340,23 @@ body {
     color: #b8ffd4;
 }
 
-.raid-viewers,
+.raid-stream-category .title {
+    display: none;
+}
+
+.raid-viewers {
+    position: absolute;
+    top: -80px;
+    right: 0;
+    border: 2px solid var(--secondary-color);
+    padding: 10px;
+    border-radius: 6px;
+    background: rgba(0, 20, 0, 0.85);
+    backdrop-filter: blur(1px);
+    color: var(--secondary-color);
+    box-shadow: 0 0 15px var(--secondary-color);
+}
+
 .raid-description {
     display: none;
 }

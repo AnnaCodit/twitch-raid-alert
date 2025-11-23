@@ -1,12 +1,13 @@
 /***********************
  * НАСТРОЙКИ
  ***********************/
-const CHANNEL = "FRA3A"; // без #
-const SHOW_TIME = 14000; // мс
+const CHANNEL = "FRA3A"; // channel
+let SHOW_TIME = 14000; // ms
+const TEST_MODE = true;
 
 const container = document.querySelector('.raid-wrapper');
 const avatarEl = document.querySelector('.avatar');
-const nickname = document.querySelector('.raid-nickname');
+const nickname = document.querySelector('.raid-nickname .value');
 const raid_viewers = document.querySelector('.raid-viewers');
 const streamTitle = document.querySelector('.raid-stream-title');
 const category = document.querySelector('.raid-stream-category .name');
@@ -50,7 +51,7 @@ function showTestRaid() {
             profile_image_url: "https://static-cdn.jtvnw.net/jtv_user_pictures/bc0af20e-b4db-4205-a2ba-f6aaf2903c1d-profile_image-70x70.png"
         },
         stream: {
-            title: "Let's talk about code",
+            title: "⚡ ПРОДОЛЖАЮ ПОЗОРИТЬСЯ 😩 НО НЕ СДАЮСЬ 😭 БЕЗ ПОНЯТИЯ ЧТО Я ДЕЛАЮ 💀 ПАРА ПРИКОЛОВ 🎁 НОЛЬ ХАЙПА 😪 ТОЛЬКО ДЛЯ СПЯЩИХ БИЗНЕСМЕНОВ 🌙🌚",
             game_name: "Software & Game Dev"
         }
     };
@@ -61,10 +62,10 @@ function showRaid(data) {
     const { username, viewers, user, stream } = data;
 
     nickname.textContent = `${username}`;
-    raid_viewers.textContent = `${viewers} viewer${viewers === 1 ? '' : 's'}`;
+    raid_viewers.textContent = `${viewers}`;
+    // raid_viewers.textContent = `${viewers} viewer${viewers === 1 ? '' : 's'}`;
     avatarEl.style.backgroundImage = `url('${user.profile_image_url}')`;
     description.textContent = `${user.description}`;
-
 
     if (stream) {
         streamTitle.textContent = `${stream.title}`;
@@ -120,3 +121,8 @@ async function getAppToken() {
 }
 
 client.on('connected', () => console.log('Raid overlay connected.'));
+
+if (TEST_MODE) {
+    SHOW_TIME = 1000000;
+    showTestRaid();
+}
