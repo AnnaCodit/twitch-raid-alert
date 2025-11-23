@@ -66,8 +66,8 @@ async function showRaid(data) {
         titleText = `${stream.title}`;
         categoryText = `${stream.game_name}`;
     } else {
-        titleText = ``;
-        categoryText = `Currently offline`;
+        titleText = `Ошибка. Название стрима не обнаружено. Активация протокола проверки рейдеров на легитимность.`;
+        categoryText = `Похоже, что это оффлайн-рейд`;
     }
 
     container.classList.add('show');
