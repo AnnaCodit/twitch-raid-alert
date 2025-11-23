@@ -101,6 +101,7 @@ function typeWriter(element, text, speed = 50) {
     return new Promise(resolve => {
         if (element.typingTimeout) clearTimeout(element.typingTimeout);
         element.textContent = "";
+        element.classList.add('typing-cursor');
         let i = 0;
 
         function type() {
@@ -110,6 +111,7 @@ function typeWriter(element, text, speed = 50) {
                 element.typingTimeout = setTimeout(type, speed);
             } else {
                 element.typingTimeout = null;
+                element.classList.remove('typing-cursor');
                 resolve();
             }
         }
