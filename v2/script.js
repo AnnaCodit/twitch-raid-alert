@@ -8,7 +8,7 @@ const TEST_MODE = true;
 const container = document.querySelector('.raid-wrapper');
 const avatarEl = document.querySelector('.avatar');
 const nickname = document.querySelector('.raid-nickname .value');
-const raid_viewers = document.querySelector('.raid-viewers');
+const raid_viewers = document.querySelector('.raid-viewers .value');
 const streamTitle = document.querySelector('.raid-stream-title');
 const category = document.querySelector('.raid-stream-category .name');
 const description = document.querySelector('.raid-description');
@@ -45,7 +45,8 @@ async function initRaid(username, viewers) {
 
 function showTestRaid() {
     const data = {
-        username: "NikoChan_bubububu_1337_adsad",
+        username: "KaySenat",
+        // username: "NikoChan_bubububu_1337_adsad",
         viewers: 100,
         user: {
             profile_image_url: "https://static-cdn.jtvnw.net/jtv_user_pictures/bc0af20e-b4db-4205-a2ba-f6aaf2903c1d-profile_image-70x70.png"
@@ -67,12 +68,13 @@ async function showRaid(data) {
     description.textContent = `${user.description}`;
 
     let titleText = "";
+    let categoryText = "";
     if (stream) {
         titleText = `${stream.title}`;
-        category.textContent = `${stream.game_name}`;
+        categoryText = `${stream.game_name}`;
     } else {
-        category.textContent = `Currently offline`;
         titleText = ``;
+        categoryText = `Currently offline`;
     }
 
     container.classList.add('show');
@@ -82,12 +84,12 @@ async function showRaid(data) {
     category.textContent = '';
 
     // Wait for fade in
-    await new Promise(r => setTimeout(r, 500));
+    await new Promise(r => setTimeout(r, 600));
 
     // Typing effect
-    await typeWriter(nickname, username, 50);
-    await typeWriter(streamTitle, titleText, 15);
-    await typeWriter(category, `${stream.game_name}`, 15);
+    await typeWriter(nickname, username, 100);
+    await typeWriter(streamTitle, titleText, 40);
+    await typeWriter(category, categoryText, 20);
 
     clearTimeout(window._hideTimer);
     window._hideTimer = setTimeout(() => {
