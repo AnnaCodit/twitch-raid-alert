@@ -58,28 +58,61 @@ function showTestRaid() {
     showRaid(data);
 }
 
-function showRaid(data) {
+async function showRaid(data) {
     const { username, viewers, user, stream } = data;
 
-    nickname.textContent = `${username}`;
     raid_viewers.textContent = `${viewers}`;
     // raid_viewers.textContent = `${viewers} viewer${viewers === 1 ? '' : 's'}`;
     avatarEl.style.backgroundImage = `url('${user.profile_image_url}')`;
     description.textContent = `${user.description}`;
 
+    let titleText = "";
     if (stream) {
-        streamTitle.textContent = `${stream.title}`;
+        titleText = `${stream.title}`;
         category.textContent = `${stream.game_name}`;
     } else {
         category.textContent = `Currently offline`;
-        streamTitle.textContent = ``;
+        titleText = ``;
     }
 
     container.classList.add('show');
+
+    nickname.textContent = '';
+    streamTitle.textContent = '';
+    category.textContent = '';
+
+    // Wait for fade in
+    await new Promise(r => setTimeout(r, 500));
+
+    // Typing effect
+    await typeWriter(nickname, username, 50);
+    await typeWriter(streamTitle, titleText, 15);
+    await typeWriter(category, `${stream.game_name}`, 15);
+
     clearTimeout(window._hideTimer);
     window._hideTimer = setTimeout(() => {
         container.classList.remove('show');
     }, SHOW_TIME);
+}
+
+function typeWriter(element, text, speed = 50) {
+    return new Promise(resolve => {
+        if (element.typingTimeout) clearTimeout(element.typingTimeout);
+        element.textContent = "";
+        let i = 0;
+
+        function type() {
+            if (i < text.length) {
+                element.textContent += text.charAt(i);
+                i++;
+                element.typingTimeout = setTimeout(type, speed);
+            } else {
+                element.typingTimeout = null;
+                resolve();
+            }
+        }
+        type();
+    });
 }
 
 async function twitchAPI(endpoint, token) {

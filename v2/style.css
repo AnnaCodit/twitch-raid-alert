@@ -349,7 +349,7 @@ body {
     top: -80px;
     right: 0;
     border: 2px solid var(--secondary-color);
-    padding: 10px;
+    padding: 10px 15px;
     border-radius: 6px;
     background: rgba(0, 20, 0, 0.85);
     backdrop-filter: blur(1px);
