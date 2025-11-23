@@ -1,10 +1,3 @@
-/***********************
- * НАСТРОЙКИ
- ***********************/
-const CHANNEL = "FRA3A"; // channel
-let SHOW_TIME = 14000; // ms
-const TEST_MODE = true;
-
 const container = document.querySelector('.raid-wrapper');
 const avatarEl = document.querySelector('.avatar');
 const nickname = document.querySelector('.raid-nickname .value');
