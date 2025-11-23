@@ -2,9 +2,9 @@
  * НАСТРОЙКИ
  ***********************/
 const CHANNEL = "FRA3A"; // без #
-const SHOW_TIME = 10000; // мс
+const SHOW_TIME = 14000; // мс
 
-const container = document.querySelector('.raid-card');
+const container = document.querySelector('.raid-wrapper');
 const avatarEl = document.querySelector('.avatar');
 const nickname = document.querySelector('.raid-nickname');
 const raid_viewers = document.querySelector('.raid-viewers');
