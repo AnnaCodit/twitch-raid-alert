@@ -51,7 +51,7 @@ body {
     animation: glitch 0.5s infinite linear;
 }
 
-.raid-card img {
+/* .raid-card img {
     height: 300px;
     object-fit: cover;
     margin-right: 40px;
@@ -60,7 +60,7 @@ body {
     box-shadow: 0 0 15px var(--primary-color);
     filter: brightness(1.1) contrast(1.2);
     animation: flicker 3s infinite;
-}
+} */
 
 .raid-card .avatar {
     /* height: 300px; */
@@ -225,11 +225,14 @@ body {
 
 .raid-card-title {
     position: absolute;
-    top: -75px;
+    top: -85px;
     left: 0;
     font-size: 220%;
     text-transform: uppercase;
     z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
     /* color: black; */
 }
 
