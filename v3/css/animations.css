@@ -1,0 +1,150 @@
+/* === Мерцание экрана === */
+@keyframes flicker {
+
+    0%,
+    18%,
+    22%,
+    25%,
+    53%,
+    57%,
+    100% {
+        opacity: 1;
+    }
+
+    20%,
+    24%,
+    55% {
+        opacity: 0.6;
+    }
+}
+
+/* Эффект быстрого мерцания (flicker-fast) */
+.flicker-fast {
+    animation: flicker-fast 0.1s infinite alternate;
+}
+
+@keyframes flicker-fast {
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.8;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}
+
+
+/* === Шумовые горизонтальные линии === */
+@keyframes scanlines {
+    0% {
+        background-position: 0 0;
+    }
+
+    100% {
+        background-position: 0 100%;
+    }
+}
+
+/* === Плавная дрожь (уменьшенная) === */
+@keyframes glitch {
+    0% {
+        transform: translate(0, 0)skew(0deg, 0deg)
+    }
+
+    10% {
+        transform: translate(-1px, 0.5px)skew(-0.3deg, 0.2deg)
+    }
+
+    20% {
+        transform: translate(0.5px, -0.5px)skew(0.2deg, -0.2deg)
+    }
+
+    30% {
+        transform: translate(-0.5px, 0)skew(0deg, 0.3deg)
+    }
+
+    40% {
+        transform: translate(1px, -0.5px)skew(-0.3deg, -0.2deg)
+    }
+
+    50% {
+        transform: translate(0, 0.5px)skew(0.2deg, 0deg)
+    }
+
+    60% {
+        transform: translate(-0.5px, 0)skew(0deg, 0.2deg)
+    }
+
+    70% {
+        transform: translate(0.5px, -0.5px)skew(-0.2deg, 0deg)
+    }
+
+    80% {
+        transform: translate(-0.5px, 0.5px)skew(0deg, -0.2deg)
+    }
+
+    90%,
+    100% {
+        transform: translate(0, 0)skew(0deg, 0deg)
+    }
+}
+
+/* === Редкие горизонтальные глитчи === */
+@keyframes glitchLines {
+
+    0%,
+    90%,
+    100% {
+        transform: translateY(0);
+        opacity: 0;
+    }
+
+    91% {
+        transform: translateY(5px);
+        opacity: 0.3;
+    }
+
+    92% {
+        transform: translateY(-3px);
+        opacity: 0.5;
+    }
+
+}
+
+@keyframes blink-effect {
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.text-glow {
+    animation: textglow 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes textglow {
+    from {
+        text-shadow: 0 0 5px var(--primary-color), 0 0 10px var(--primary-color);
+    }
+
+    to {
+        text-shadow: 0 0 20px var(--primary-color), 0 0 40px var(--primary-color);
+    }
+}
+
+@keyframes spark {
+
+    0%,
+    97%,
+    100% {
+        opacity: 1;
+    }
+
+    98%,
+    99% {
+        opacity: 0;
+    }
+}

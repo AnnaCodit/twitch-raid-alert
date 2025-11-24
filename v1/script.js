@@ -1,7 +1,13 @@
-const container = document.querySelector('.raid-wrapper');
+/***********************
+ * НАСТРОЙКИ
+ ***********************/
+const CHANNEL = "FRA3A"; // без #
+const SHOW_TIME = 10000; // мс
+
+const container = document.querySelector('.raid-card');
 const avatarEl = document.querySelector('.avatar');
-const nickname = document.querySelector('.raid-nickname .value');
-const raid_viewers = document.querySelector('.raid-viewers .value');
+const nickname = document.querySelector('.raid-nickname');
+const raid_viewers = document.querySelector('.raid-viewers');
 const streamTitle = document.querySelector('.raid-stream-title');
 const category = document.querySelector('.raid-stream-category .name');
 const description = document.querySelector('.raid-description');
@@ -38,78 +44,41 @@ async function initRaid(username, viewers) {
 
 function showTestRaid() {
     const data = {
-        username: "KaySenat",
-        // username: "NikoChan_bubububu_1337_adsad",
+        username: "NikoChan_bubububu_1337_adsad",
         viewers: 100,
         user: {
             profile_image_url: "https://static-cdn.jtvnw.net/jtv_user_pictures/bc0af20e-b4db-4205-a2ba-f6aaf2903c1d-profile_image-70x70.png"
         },
         stream: {
-            title: "⚡ ПРОДОЛЖАЮ ПОЗОРИТЬСЯ 😩 НО НЕ СДАЮСЬ 😭 БЕЗ ПОНЯТИЯ ЧТО Я ДЕЛАЮ 💀 ПАРА ПРИКОЛОВ 🎁 НОЛЬ ХАЙПА 😪 ТОЛЬКО ДЛЯ СПЯЩИХ БИЗНЕСМЕНОВ 🌙🌚",
+            title: "Let's talk about code",
             game_name: "Software & Game Dev"
         }
     };
     showRaid(data);
 }
 
-async function showRaid(data) {
+function showRaid(data) {
     const { username, viewers, user, stream } = data;
 
-    raid_viewers.textContent = `${viewers}`;
-    // raid_viewers.textContent = `${viewers} viewer${viewers === 1 ? '' : 's'}`;
+    nickname.textContent = `${username}`;
+    raid_viewers.textContent = `${viewers} viewer${viewers === 1 ? '' : 's'}`;
     avatarEl.style.backgroundImage = `url('${user.profile_image_url}')`;
     description.textContent = `${user.description}`;
 
-    let titleText = "";
-    let categoryText = "";
+
     if (stream) {
-        titleText = `${stream.title}`;
-        categoryText = `${stream.game_name}`;
+        streamTitle.textContent = `${stream.title}`;
+        category.textContent = `${stream.game_name}`;
     } else {
-        titleText = STREAM_TITLE_IF_EMPTY;
-        categoryText = STREAM_CATEGORY_IF_EMPTY;
+        category.textContent = `Currently offline`;
+        streamTitle.textContent = ``;
     }
 
     container.classList.add('show');
-
-    nickname.textContent = '';
-    streamTitle.textContent = '';
-    category.textContent = '';
-
-    // Wait for fade in
-    await new Promise(r => setTimeout(r, 600));
-
-    // Typing effect
-    await typeWriter(nickname, username, 100);
-    await typeWriter(streamTitle, titleText, 40);
-    await typeWriter(category, categoryText, 20);
-
     clearTimeout(window._hideTimer);
     window._hideTimer = setTimeout(() => {
         container.classList.remove('show');
     }, SHOW_TIME);
-}
-
-function typeWriter(element, text, speed = 50) {
-    return new Promise(resolve => {
-        if (element.typingTimeout) clearTimeout(element.typingTimeout);
-        element.textContent = "";
-        element.classList.add('typing-cursor');
-        let i = 0;
-
-        function type() {
-            if (i < text.length) {
-                element.textContent += text.charAt(i);
-                i++;
-                element.typingTimeout = setTimeout(type, speed);
-            } else {
-                element.typingTimeout = null;
-                element.classList.remove('typing-cursor');
-                resolve();
-            }
-        }
-        type();
-    });
 }
 
 async function twitchAPI(endpoint, token) {
@@ -151,8 +120,3 @@ async function getAppToken() {
 }
 
 client.on('connected', () => console.log('Raid overlay connected.'));
-
-if (TEST_MODE) {
-    SHOW_TIME = TEST_SHOW_TIME;
-    showTestRaid();
-}
