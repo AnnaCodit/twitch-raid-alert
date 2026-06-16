@@ -5,6 +5,8 @@ const raid_viewers = document.querySelector('.raid-viewers .value');
 const streamTitle = document.querySelector('.raid-stream-title');
 const category = document.querySelector('.raid-stream-category .name');
 const description = document.querySelector('.raid-description');
+const DEFAULT_AVATAR = avatarEl.style.backgroundImage;
+const TWITCH_REQUEST_TIMEOUT = 8000;
 
 // Queue system
 const raidQueue = [];
@@ -15,30 +17,43 @@ const client = new tmi.Client({
     channels: [CHANNEL]
 });
 
-client.connect();
 client.on('raided', async (channel, username, viewers) => {
     await initRaid(username, viewers);
 });
+client.on('connected', () => console.log('Raid overlay connected.'));
+client.connect().catch(error => console.error('Не удалось подключиться к Twitch-чату:', error));
 
 async function initRaid(username, viewers) {
-    const token = await getAppToken();
-    const userData = await twitchAPI(`users?login=${encodeURIComponent(username)}`, token);
-    const user = userData?.data?.[0];
-    console.log(userData);
-
-    if (!user) return;
-
-    const streamData = await twitchAPI(`streams?user_id=${user.id}`, token);
-    const stream = streamData?.data?.[0];
-    console.log(streamData);
-
-    // Add to queue instead of showing immediately
-    raidQueue.push({
+    const raidData = {
         username,
         viewers,
-        user,
-        stream
-    });
+        user: null,
+        stream: null,
+        channelInfo: null
+    };
+
+    try {
+        const userData = await fetchTwitchAPI(`users?login=${encodeURIComponent(username)}`);
+        const user = userData?.data?.[0];
+
+        if (user) {
+            const [streamData, channelData] = await Promise.all([
+                fetchTwitchAPI(`streams?user_id=${user.id}`),
+                fetchTwitchAPI(`channels?broadcaster_id=${user.id}`)
+            ]);
+
+            raidData.user = user;
+            raidData.stream = streamData?.data?.[0] || null;
+            raidData.channelInfo = channelData?.data?.[0] || null;
+        } else {
+            console.warn('Twitch user not found for raid:', username);
+        }
+    } catch (error) {
+        console.error('Не удалось получить данные рейдера из Twitch API:', error);
+    }
+
+    // Показываем рейд даже если Twitch API не вернул дополнительные данные.
+    raidQueue.push(raidData);
 
     processQueue();
 }
@@ -50,11 +65,15 @@ async function processQueue() {
     isRaidShowing = true;
     const data = raidQueue.shift();
 
-    await showRaid(data);
-
-    isRaidShowing = false;
-    // Small buffer before next raid? Optional.
-    setTimeout(processQueue, 100);
+    try {
+        await showRaid(data);
+    } catch (error) {
+        console.error('Ошибка показа рейда:', error);
+    } finally {
+        isRaidShowing = false;
+        // Small buffer before next raid? Optional.
+        setTimeout(processQueue, 100);
+    }
 }
 
 function showTestRaid() {
@@ -68,56 +87,50 @@ function showTestRaid() {
         stream: {
             title: "⚡ ПРОДОЛЖАЮ ПОЗОРИТЬСЯ 😩 НО НЕ СДАЮСЬ 😭 БЕЗ ПОНЯТИЯ ЧТО Я ДЕЛАЮ 💀 ПАРА ПРИКОЛОВ 🎁 НОЛЬ ХАЙПА 😪 ТОЛЬКО ДЛЯ СПЯЩИХ БИЗНЕСМЕНОВ 🌙🌚",
             game_name: "Software & Game Dev"
-        }
+        },
+        channelInfo: null
     };
     // Also use queue for test
     raidQueue.push(data);
     processQueue();
 }
 
-function showRaid(data) {
-    return new Promise(async (resolve) => {
-        const { username, viewers, user, stream } = data;
+async function showRaid(data) {
+    const { username, viewers, user, stream, channelInfo } = data;
 
-        raid_viewers.textContent = `${viewers}`;
-        // raid_viewers.textContent = `${viewers} viewer${viewers === 1 ? '' : 's'}`;
+    raid_viewers.textContent = `${viewers}`;
+    // raid_viewers.textContent = `${viewers} viewer${viewers === 1 ? '' : 's'}`;
+    if (user?.profile_image_url) {
         avatarEl.style.backgroundImage = `url('${user.profile_image_url}')`;
-        description.textContent = `${user.description}`;
+    } else {
+        avatarEl.style.backgroundImage = DEFAULT_AVATAR;
+    }
+    description.textContent = user?.description || '';
 
-        let titleText = "";
-        let categoryText = "";
-        if (stream) {
-            titleText = `${stream.title}`;
-            categoryText = `${stream.game_name}`;
-        } else {
-            titleText = STREAM_TITLE_IF_EMPTY;
-            categoryText = STREAM_CATEGORY_IF_EMPTY;
-        }
+    const titleText = stream?.title || channelInfo?.title || STREAM_TITLE_IF_EMPTY;
+    const categoryText = stream?.game_name || channelInfo?.game_name || STREAM_CATEGORY_IF_EMPTY;
 
-        container.classList.add('show');
+    container.classList.add('show');
 
-        nickname.textContent = '';
-        streamTitle.textContent = '';
-        category.textContent = '';
+    nickname.textContent = '';
+    streamTitle.textContent = '';
+    category.textContent = '';
 
-        // Wait for fade in
-        await new Promise(r => setTimeout(r, 600));
+    // Wait for fade in
+    await delay(600);
 
-        // Typing effect
-        await typeWriter(nickname, username, 100);
-        await typeWriter(streamTitle, titleText, 40);
-        await typeWriter(category, categoryText, 20);
+    // Typing effect
+    await typeWriter(nickname, username, 100);
+    await typeWriter(streamTitle, titleText, 40);
+    await typeWriter(category, categoryText, 20);
 
-        // Wait for SHOW_TIME
-        await new Promise(r => setTimeout(r, SHOW_TIME));
+    // Wait for SHOW_TIME
+    await delay(SHOW_TIME);
 
-        container.classList.remove('show');
+    container.classList.remove('show');
 
-        // Wait for hide animation (0.5s from CSS)
-        await new Promise(r => setTimeout(r, 600)); // 600ms to be safe
-
-        resolve();
-    });
+    // Wait for hide animation (0.5s from CSS)
+    await delay(600); // 600ms to be safe
 }
 
 function typeWriter(element, text, speed = 50) {
@@ -125,11 +138,12 @@ function typeWriter(element, text, speed = 50) {
         if (element.typingTimeout) clearTimeout(element.typingTimeout);
         element.textContent = "";
         element.classList.add('typing-cursor');
+        const chars = Array.from(String(text || ''));
         let i = 0;
 
         function type() {
-            if (i < text.length) {
-                element.textContent += text.charAt(i);
+            if (i < chars.length) {
+                element.textContent += chars[i];
                 i++;
                 element.typingTimeout = setTimeout(type, speed);
             } else {
@@ -142,21 +156,37 @@ function typeWriter(element, text, speed = 50) {
     });
 }
 
+async function fetchTwitchAPI(endpoint) {
+    let token = await getAppToken();
+    let data = await twitchAPI(endpoint, token);
+
+    if (data) return data;
+
+    localStorage.removeItem('twitch_token');
+    token = await getAppToken(true);
+    return twitchAPI(endpoint, token);
+}
+
 async function twitchAPI(endpoint, token) {
-    const res = await fetch(`https://api.twitch.tv/helix/${endpoint}`, {
+    const res = await fetchWithTimeout(`https://api.twitch.tv/helix/${endpoint}`, {
         headers: { 'Client-ID': CLIENT_ID, 'Authorization': 'Bearer ' + token }
-    });
-    return res.ok ? res.json() : null;
+    }, TWITCH_REQUEST_TIMEOUT);
+
+    if (res.ok) return res.json();
+
+    const body = await res.text();
+    console.warn(`Twitch API error ${res.status} for ${endpoint}:`, body);
+    return null;
 }
 
 /***********************
  * АВТОМАТИЧЕСКИЙ ТОКЕН
  ***********************/
-async function getAppToken() {
+async function getAppToken(forceRefresh = false) {
     // проверяем localStorage
-    const saved = JSON.parse(localStorage.getItem('twitch_token') || '{}');
+    const saved = readSavedToken();
     const now = Date.now() / 1000;
-    if (saved.access_token && saved.expires_at > now + 300) {
+    if (!forceRefresh && saved.access_token && saved.expires_at > now + 300) {
         console.log('✅ Используем сохраненный токен');
         return saved.access_token;
     }
@@ -166,10 +196,27 @@ async function getAppToken() {
         throw new Error("Нет CLIENT_SECRET");
     }
 
+    if (!CLIENT_ID) {
+        alert("⚠️ CLIENT_ID не указан — невозможно получить Twitch token.");
+        throw new Error("Нет CLIENT_ID");
+    }
+
     // получаем новый
-    const res = await fetch(`https://id.twitch.tv/oauth2/token?client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}&grant_type=client_credentials`, {
-        method: 'POST'
+    const params = new URLSearchParams({
+        client_id: CLIENT_ID,
+        client_secret: CLIENT_SECRET,
+        grant_type: 'client_credentials'
     });
+    const res = await fetchWithTimeout('https://id.twitch.tv/oauth2/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params
+    }, TWITCH_REQUEST_TIMEOUT);
+    if (!res.ok) {
+        const body = await res.text();
+        console.warn(`Twitch token error ${res.status}:`, body);
+        throw new Error("Не удалось получить Twitch token");
+    }
     const data = await res.json();
     if (!data.access_token) throw new Error("Не удалось получить токен Twitch");
     const expires_at = now + (data.expires_in || 0);
@@ -181,7 +228,27 @@ async function getAppToken() {
     return data.access_token;
 }
 
-client.on('connected', () => console.log('Raid overlay connected.'));
+function readSavedToken() {
+    try {
+        return JSON.parse(localStorage.getItem('twitch_token') || '{}');
+    } catch (error) {
+        console.warn('Некорректный сохраненный Twitch token, очищаем cache:', error);
+        localStorage.removeItem('twitch_token');
+        return {};
+    }
+}
+
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function fetchWithTimeout(url, options, timeout) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    return fetch(url, { ...options, signal: controller.signal })
+        .finally(() => clearTimeout(timeoutId));
+}
 
 if (TEST_MODE) {
     SHOW_TIME = TEST_SHOW_TIME;
