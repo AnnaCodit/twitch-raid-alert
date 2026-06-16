@@ -2,9 +2,9 @@
 With glitchy terminal effect and text typing.
 
 To make it work:
-1. Change CHANNEL variable in /release/config.js to your channel name
-2. Change TEST_MODE variable in /release/config.js to "false"
-3. Add /release/index.html to your obs as browser source
+1. Change CHANNEL variable in /src/config.js to your channel name
+2. Change TEST_MODE variable in /src/config.js to "false"
+3. Add /src/index.html to your obs as browser source
 4. Copy /secrets/secret-example.js to /secrets/secret.js and fill it with your data
 5. ... that's basically it
 

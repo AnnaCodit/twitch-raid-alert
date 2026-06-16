@@ -6,6 +6,10 @@ const streamTitle = document.querySelector('.raid-stream-title');
 const category = document.querySelector('.raid-stream-category .name');
 const description = document.querySelector('.raid-description');
 
+// Queue system
+const raidQueue = [];
+let isRaidShowing = false;
+
 const client = new tmi.Client({
     connection: { secure: true, reconnect: true },
     channels: [CHANNEL]
@@ -22,18 +26,35 @@ async function initRaid(username, viewers) {
     const user = userData?.data?.[0];
     console.log(userData);
 
-    if (!user) return; 0
+    if (!user) return;
 
     const streamData = await twitchAPI(`streams?user_id=${user.id}`, token);
     const stream = streamData?.data?.[0];
     console.log(streamData);
 
-    showRaid({
+    // Add to queue instead of showing immediately
+    raidQueue.push({
         username,
         viewers,
         user,
         stream
     });
+
+    processQueue();
+}
+
+async function processQueue() {
+    if (isRaidShowing) return;
+    if (raidQueue.length === 0) return;
+
+    isRaidShowing = true;
+    const data = raidQueue.shift();
+
+    await showRaid(data);
+
+    isRaidShowing = false;
+    // Small buffer before next raid? Optional.
+    setTimeout(processQueue, 100);
 }
 
 function showTestRaid() {
@@ -49,45 +70,54 @@ function showTestRaid() {
             game_name: "Software & Game Dev"
         }
     };
-    showRaid(data);
+    // Also use queue for test
+    raidQueue.push(data);
+    processQueue();
 }
 
-async function showRaid(data) {
-    const { username, viewers, user, stream } = data;
+function showRaid(data) {
+    return new Promise(async (resolve) => {
+        const { username, viewers, user, stream } = data;
 
-    raid_viewers.textContent = `${viewers}`;
-    // raid_viewers.textContent = `${viewers} viewer${viewers === 1 ? '' : 's'}`;
-    avatarEl.style.backgroundImage = `url('${user.profile_image_url}')`;
-    description.textContent = `${user.description}`;
+        raid_viewers.textContent = `${viewers}`;
+        // raid_viewers.textContent = `${viewers} viewer${viewers === 1 ? '' : 's'}`;
+        avatarEl.style.backgroundImage = `url('${user.profile_image_url}')`;
+        description.textContent = `${user.description}`;
 
-    let titleText = "";
-    let categoryText = "";
-    if (stream) {
-        titleText = `${stream.title}`;
-        categoryText = `${stream.game_name}`;
-    } else {
-        titleText = STREAM_TITLE_IF_EMPTY;
-        categoryText = STREAM_CATEGORY_IF_EMPTY;
-    }
+        let titleText = "";
+        let categoryText = "";
+        if (stream) {
+            titleText = `${stream.title}`;
+            categoryText = `${stream.game_name}`;
+        } else {
+            titleText = STREAM_TITLE_IF_EMPTY;
+            categoryText = STREAM_CATEGORY_IF_EMPTY;
+        }
 
-    container.classList.add('show');
+        container.classList.add('show');
 
-    nickname.textContent = '';
-    streamTitle.textContent = '';
-    category.textContent = '';
+        nickname.textContent = '';
+        streamTitle.textContent = '';
+        category.textContent = '';
 
-    // Wait for fade in
-    await new Promise(r => setTimeout(r, 600));
+        // Wait for fade in
+        await new Promise(r => setTimeout(r, 600));
 
-    // Typing effect
-    await typeWriter(nickname, username, 100);
-    await typeWriter(streamTitle, titleText, 40);
-    await typeWriter(category, categoryText, 20);
+        // Typing effect
+        await typeWriter(nickname, username, 100);
+        await typeWriter(streamTitle, titleText, 40);
+        await typeWriter(category, categoryText, 20);
 
-    clearTimeout(window._hideTimer);
-    window._hideTimer = setTimeout(() => {
+        // Wait for SHOW_TIME
+        await new Promise(r => setTimeout(r, SHOW_TIME));
+
         container.classList.remove('show');
-    }, SHOW_TIME);
+
+        // Wait for hide animation (0.5s from CSS)
+        await new Promise(r => setTimeout(r, 600)); // 600ms to be safe
+
+        resolve();
+    });
 }
 
 function typeWriter(element, text, speed = 50) {
@@ -127,6 +157,7 @@ async function getAppToken() {
     const saved = JSON.parse(localStorage.getItem('twitch_token') || '{}');
     const now = Date.now() / 1000;
     if (saved.access_token && saved.expires_at > now + 300) {
+        console.log('✅ Используем сохраненный токен');
         return saved.access_token;
     }
 
