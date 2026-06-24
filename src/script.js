@@ -17,23 +17,27 @@ const client = new tmi.Client({
     channels: [CHANNEL]
 });
 
-client.on('raided', async (channel, username, viewers) => {
-    await initRaid(username, viewers);
+client.on('raided', (channel, username, viewers) => {
+    initRaid(username, viewers);
 });
 client.on('connected', () => console.log('Raid overlay connected.'));
 client.connect().catch(error => console.error('Не удалось подключиться к Twitch-чату:', error));
 
-async function initRaid(username, viewers) {
-    const raidData = {
+function initRaid(username, viewers) {
+    raidQueue.push({
         username,
         viewers,
         user: null,
         stream: null,
         channelInfo: null
-    };
+    });
 
+    processQueue();
+}
+
+async function enrichRaidData(raidData) {
     try {
-        const userData = await fetchTwitchAPI(`users?login=${encodeURIComponent(username)}`);
+        const userData = await fetchTwitchAPI(`users?login=${encodeURIComponent(raidData.username)}`);
         const user = userData?.data?.[0];
 
         if (user) {
@@ -46,16 +50,13 @@ async function initRaid(username, viewers) {
             raidData.stream = streamData?.data?.[0] || null;
             raidData.channelInfo = channelData?.data?.[0] || null;
         } else {
-            console.warn('Twitch user not found for raid:', username);
+            console.warn('Twitch user not found for raid:', raidData.username);
         }
     } catch (error) {
         console.error('Не удалось получить данные рейдера из Twitch API:', error);
     }
 
-    // Показываем рейд даже если Twitch API не вернул дополнительные данные.
-    raidQueue.push(raidData);
-
-    processQueue();
+    return raidData;
 }
 
 async function processQueue() {
@@ -66,6 +67,7 @@ async function processQueue() {
     const data = raidQueue.shift();
 
     try {
+        await enrichRaidData(data);
         await showRaid(data);
     } catch (error) {
         console.error('Ошибка показа рейда:', error);
@@ -158,25 +160,46 @@ function typeWriter(element, text, speed = 50) {
 
 async function fetchTwitchAPI(endpoint) {
     let token = await getAppToken();
-    let data = await twitchAPI(endpoint, token);
+    let result = await twitchAPI(endpoint, token);
 
-    if (data) return data;
+    if (result.ok) return result.data;
+    if (result.status !== 401 && result.status !== 403) return null;
 
     localStorage.removeItem('twitch_token');
     token = await getAppToken(true);
-    return twitchAPI(endpoint, token);
+    result = await twitchAPI(endpoint, token);
+    return result.ok ? result.data : null;
 }
 
 async function twitchAPI(endpoint, token) {
-    const res = await fetchWithTimeout(`https://api.twitch.tv/helix/${endpoint}`, {
-        headers: { 'Client-ID': CLIENT_ID, 'Authorization': 'Bearer ' + token }
-    }, TWITCH_REQUEST_TIMEOUT);
+    try {
+        const res = await fetchWithTimeout(`https://api.twitch.tv/helix/${endpoint}`, {
+            headers: { 'Client-ID': CLIENT_ID, 'Authorization': 'Bearer ' + token }
+        }, TWITCH_REQUEST_TIMEOUT);
 
-    if (res.ok) return res.json();
+        if (res.ok) {
+            return {
+                ok: true,
+                status: res.status,
+                data: await res.json()
+            };
+        }
 
-    const body = await res.text();
-    console.warn(`Twitch API error ${res.status} for ${endpoint}:`, body);
-    return null;
+        const body = await res.text();
+        console.warn(`Twitch API error ${res.status} for ${endpoint}:`, body);
+        return {
+            ok: false,
+            status: res.status,
+            data: null
+        };
+    } catch (error) {
+        console.warn(`Twitch API request failed for ${endpoint}:`, error);
+        return {
+            ok: false,
+            status: 0,
+            data: null
+        };
+    }
 }
 
 /***********************
