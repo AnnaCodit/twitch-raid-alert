@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Глитч-карточка CRT</title>
     <link rel="icon" href="data:,">
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/clips.css?v=20260625-vod-offset">
+    <link rel="stylesheet" href="css/style.css?v=20260625-clip-cleanup">
+    <link rel="stylesheet" href="css/clips.css?v=20260625-clip-cleanup">
 </head>
 
 <body>
@@ -22,13 +22,6 @@
                 <button class="auth-panel__button auth-panel__connect" type="button">Подключить Twitch</button>
                 <button class="auth-panel__button auth-panel__reset" type="button">Сбросить токен</button>
             </div>
-        </div>
-    </div>
-    <div class="clip-sound-panel is-hidden">
-        <div class="clip-sound-panel__box">
-            <div class="clip-sound-panel__title">Clip sound unlock</div>
-            <div class="clip-sound-panel__status">Нажми один раз, чтобы браузер разрешил клипам запускаться со звуком. После этого overlay запустит рейды.</div>
-            <button class="clip-sound-panel__button" type="button">Включить звук клипов</button>
         </div>
     </div>
     <div class="raid-wrapper">
@@ -78,11 +71,11 @@
             <div class="clip-stats"></div>
         </div>
     </div>
-    <script src="config.js?v=20260625-auth-split"></script>
-    <script src="auth.js?v=20260625-auth-split"></script>
+    <script src="config.js?v=20260625-clip-cleanup"></script>
+    <script src="auth.js?v=20260625-clip-cleanup"></script>
     <script src="tmi.min.js"></script>
-    <script src="https://player.twitch.tv/js/embed/v1.js"></script>
-    <script src="script.js?v=20260625-auth-split"></script>
+    <script src="clips.js?v=20260625-clip-cleanup"></script>
+    <script src="script.js?v=20260625-clip-cleanup"></script>
 </body>
 
 </html>

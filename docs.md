@@ -4,7 +4,7 @@
 
 ## Основной сценарий
 
-1. `src/index.html` загружает зависимости в порядке: `config.js`, `auth.js`, `tmi.min.js`, Twitch Player API, `script.js`.
+1. `src/index.html` загружает зависимости в порядке: `config.js`, `auth.js`, `tmi.min.js`, `clips.js`, `script.js`.
 2. `src/auth.js` проверяет user access token Twitch. Если токена нет, показывает простую панель Twitch Device Code Flow.
 3. После авторизации `auth.js` вызывает callback из `script.js`, а основная логика подключается к Twitch-чату через `tmi.Client` на канал из `CHANNEL`.
 4. При событии `raided` код сразу кладет базовые данные рейда (`username`, `viewers`) в `raidQueue`, чтобы сохранить порядок прихода рейдов.
@@ -14,32 +14,23 @@
    - `channels?broadcaster_id=...` как fallback для названия и категории канала.
 6. Рейд показывается даже если Twitch API недоступен, чтобы alert не пропадал полностью.
 7. `showRaid()` заполняет DOM, включает `.raid-wrapper.show`, печатает ник/название/категорию через `typeWriter()`, ждет `SHOW_TIME` и скрывает карточку.
-8. После скрытия карточки, если `CLIPS_ENABLED = true`, код показывает клип рейдера в нижней трети экрана.
+8. После скрытия карточки, если `CLIPS_ENABLED = true`, код передает выбранный клип в `clips.js`.
 9. Если данные стрима и канала не найдены, используются fallback-тексты из `config.js`.
 
 У изменяемых CSS/JS-ресурсов в `index.html` может быть query-version вида `?v=...`: это простой cache-bust для браузера и OBS Browser Source.
 
 ## Клип рейдера
 
-Клип выбирается через Twitch Helix `clips`: запрашивается до `CLIP_FETCH_LIMIT` клипов рейдера за последние `CLIP_LOOKBACK_DAYS` дней, затем отбрасываются клипы длиннее `CLIP_MAX_DURATION_SECONDS`. Если среди оставшихся есть `is_featured=true`, берется самый свежий featured-клип по `created_at`. Если featured-клипов нет, берется клип с максимальным `view_count`.
+`src/clips.js` выбирает клип через Twitch Helix `clips`: запрашивается до `CLIP_FETCH_LIMIT` клипов рейдера за последние `CLIP_LOOKBACK_DAYS` дней, затем отбрасываются клипы длиннее `CLIP_MAX_DURATION_SECONDS`. Если среди оставшихся есть `is_featured=true`, берется самый свежий featured-клип по `created_at`. Если featured-клипов нет, берется клип с максимальным `view_count`.
 
-Показ идет через официальный Twitch clips iframe `clips.twitch.tv/embed`. Прямой HTML `<video>` не используется: Twitch Helix не отдает стабильный официальный MP4 URL для клипа.
-
-Блок клипа сверстан вокруг настоящей 16:9-области `.clip-frame`; высота wrapper не фиксируется вручную, а складывается из header, 16:9-окна и meta-панели. Twitch iframe создается только на время показа клипа внутри `.clip-frame`. Для autoplay важно, чтобы ancestor-цепочка iframe не получала transform-анимации и чтобы meta-панель не была дочерним элементом `.clip-terminal`: Twitch embed учитывает видимость, размер и перекрытие плеера при проверке autoplay.
-
-Длительность показа клипа считается по `clip.duration` из Helix: фактическая длительность клипа плюс `CLIP_END_BUFFER_MS`. Отсчет начинается после события `load` у Twitch iframe; если iframe не отдал `load`, отсчет стартует после fallback-таймаута `CLIP_IFRAME_LOAD_TIMEOUT_MS`. Официальный clips iframe Twitch не поддерживает interactive Player API, поэтому надежного события старта или окончания именно видео из iframe нет. Если `duration` не пришла или некорректна, используется fallback `CLIP_SHOW_TIME`.
-
-Для autoplay со звуком браузеру нужна пользовательская активация домена. Если клипы включены и `CLIP_IFRAME_MUTED = false`, overlay показывает панель `Clip sound unlock` и не запускает chat/test-триггеры, пока звук не подготовлен. В OBS перед стримом открой Browser Source через `Interact` и один раз нажми `Включить звук клипов`; это дает странице user activation, которую top frame делегирует Twitch iframe через `allow="autoplay"`. Без такого клика браузер/OBS может принудительно запустить Twitch clip muted.
-
-Для клипов с заполненными `video_id` и `vod_offset` overlay использует официальный Twitch Player API и воспроизводит соответствующий VOD с нужного offset, скрывая его через `clip.duration`. Это позволяет вызвать `setMuted(false)` и `setVolume(CLIP_PLAYER_VOLUME)`. Если VOD player стартует с места, похожего на конец клипа, используется `CLIP_VOD_OFFSET_MODE = "end"`: старт считается как `vod_offset - duration`. Если у клипа нет VOD offset или Twitch Player API не загрузился, используется прежний clips iframe fallback.
-
-Для максимально надежного iframe fallback лучше открывать overlay в OBS через локальный HTTP-адрес, например `http://localhost:8765/index.html`, а не напрямую как `file://.../src/index.html`: Twitch embed требует корректный `parent` domain.
+На этом checkpoint `clips.js` только показывает существующий 16:9-блок клипа с превью, заголовком и статистикой. Кода реального воспроизведения клипа сейчас нет. Новое воспроизведение будет добавлено отдельно: основной путь через Twitch GraphQL/direct video URL, fallback - `https://twitch.so/pclipsmid/{slug}`.
 
 ## Что за что отвечает
 
 - `src/index.html` - разметка виджета для OBS: карточка рейда, аватар, ник, название стрима, категория, счетчик зрителей.
 - `src/auth.js` - Twitch Device Code Flow, refresh token, кеширование token в `localStorage`, auth UI, Helix-запросы через `fetchTwitchAPI()`.
-- `src/script.js` - основная runtime-логика: подключение к Twitch-чату, обработка рейдов, очередь, выбор клипа рейдера, показ и скрытие карточки/клипа.
+- `src/clips.js` - выбор клипа рейдера через Helix и временный показ клипового блока с превью; код реального воспроизведения клипа будет добавлен отдельно.
+- `src/script.js` - основная runtime-логика: подключение к Twitch-чату, обработка рейдов, очередь, показ и скрытие карточки рейда.
 - `src/config.js` - публичные настройки: Twitch `CLIENT_ID`, канал, длительность показа, тестовый режим, fallback-тексты для оффлайн-рейда.
 - `src/tmi.min.js` - vendored-библиотека TMI.js для подключения к Twitch-чату.
 - `src/css/style.css` - layout и визуальный стиль карточки: размеры, цвета, позиционирование, состояние `.show`, типографика.
@@ -57,13 +48,6 @@
 - `STREAM_TITLE_IF_EMPTY` и `STREAM_CATEGORY_IF_EMPTY` - тексты, если у рейдера нет активного стрима.
 - `CLIPS_ENABLED` - включает показ клипа после карточки рейда.
 - `CLIP_FETCH_LIMIT`, `CLIP_LOOKBACK_DAYS`, `CLIP_MAX_DURATION_SECONDS` - параметры выборки клипа.
-- `CLIP_SHOW_TIME` - fallback-длительность показа клипа, если Twitch не вернул `duration`.
-- `CLIP_END_BUFFER_MS` - запас после `clip.duration`, чтобы iframe успел догрузиться и не исчезал слишком рано.
-- `CLIP_IFRAME_LOAD_TIMEOUT_MS` - сколько максимум ждать событие `load` от Twitch iframe перед стартом отсчета длительности.
-- `CLIP_IFRAME_MUTED` - включает mute для Twitch iframe. Значение `false` запрашивает клип со звуком, но обычный браузер может заблокировать autoplay со звуком до пользовательского жеста; OBS Browser Source обычно ведет себя мягче.
-- `CLIP_USE_VOD_PLAYER_IF_AVAILABLE` - включает VOD-player режим для клипов с `video_id` и `vod_offset`, чтобы можно было программно выставить звук.
-- `CLIP_PLAYER_VOLUME` - громкость для Twitch Player API в VOD-player режиме, от `0` до `1`.
-- `CLIP_VOD_OFFSET_MODE` - как трактовать `vod_offset` для VOD-player режима: `"start"` использует offset как начало, `"end"` стартует с `vod_offset - duration`.
 
 ## Запуск
 

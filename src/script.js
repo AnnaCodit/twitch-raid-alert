@@ -5,13 +5,6 @@ const raid_viewers = document.querySelector('.raid-viewers .value');
 const streamTitle = document.querySelector('.raid-stream-title');
 const category = document.querySelector('.raid-stream-category .name');
 const description = document.querySelector('.raid-description');
-const clipWrapper = document.querySelector('.clip-wrapper');
-const clipFrame = document.querySelector('.clip-frame');
-const clipTitle = document.querySelector('.clip-title');
-const clipStats = document.querySelector('.clip-stats');
-const clipSoundPanel = document.querySelector('.clip-sound-panel');
-const clipSoundStatus = document.querySelector('.clip-sound-panel__status');
-const clipSoundButton = document.querySelector('.clip-sound-panel__button');
 const DEFAULT_AVATAR = avatarEl.style.backgroundImage;
 
 const raidQueue = [];
@@ -19,25 +12,13 @@ let isRaidShowing = false;
 let chatClient = null;
 let chatStarted = false;
 let initialTriggersStarted = false;
-let clipIframe = null;
-let clipPlayer = null;
-let clipSoundUnlockResolve = null;
-
-clipSoundButton?.addEventListener('click', () => {
-    unlockClipSound().catch(error => {
-        if (clipSoundStatus) {
-            clipSoundStatus.textContent = `Не удалось подготовить звук: ${error.message}`;
-        }
-    });
-});
 
 initTwitchAuthorization({
     onAuthorized: startOverlay,
     onReset: stopTwitchChat
 });
 
-async function startOverlay() {
-    await ensureClipSoundUnlocked();
+function startOverlay() {
     startTwitchChat();
     startInitialTriggers();
 }
@@ -222,234 +203,6 @@ async function showRaid(data) {
     await showClip(data.clip);
 }
 
-async function fetchRaiderClip(broadcasterId) {
-    if (!CLIPS_ENABLED) return null;
-
-    const endedAt = new Date();
-    const startedAt = new Date(endedAt.getTime() - CLIP_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
-    const params = new URLSearchParams({
-        broadcaster_id: broadcasterId,
-        started_at: startedAt.toISOString(),
-        ended_at: endedAt.toISOString(),
-        first: String(CLIP_FETCH_LIMIT)
-    });
-    const clipsData = await fetchTwitchAPI(`clips?${params.toString()}`);
-    const clips = clipsData?.data || [];
-    const shortClips = clips.filter(clip => Number(clip.duration || 0) <= CLIP_MAX_DURATION_SECONDS);
-
-    if (shortClips.length === 0) return null;
-
-    const featuredClip = shortClips
-        .filter(clip => clip.is_featured)
-        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
-
-    if (featuredClip) return featuredClip;
-
-    return shortClips
-        .slice()
-        .sort((a, b) => Number(b.view_count || 0) - Number(a.view_count || 0))[0];
-}
-
-async function showClip(clip) {
-    if (!CLIPS_ENABLED || !clip || !clipWrapper || !clipFrame) return;
-
-    resetClipPlayback();
-    clipTitle.textContent = clip.title || 'CLIP DATA LOADED';
-    clipStats.textContent = formatClipStats(clip);
-    clipWrapper.classList.add('show');
-
-    await showClipPlayback(clip);
-    await delay(getClipDisplayTime(clip));
-    await hideClip();
-}
-
-function getClipDisplayTime(clip) {
-    const durationMs = Number(clip?.duration || 0) * 1000;
-
-    if (!Number.isFinite(durationMs) || durationMs <= 0) {
-        return CLIP_SHOW_TIME;
-    }
-
-    return Math.ceil(durationMs) + CLIP_END_BUFFER_MS;
-}
-
-function resetClipPlayback() {
-    if (clipPlayer?.destroy) {
-        clipPlayer.destroy();
-    }
-
-    clipPlayer = null;
-
-    if (!clipIframe) return;
-
-    clipIframe.remove();
-    clipIframe = null;
-}
-
-async function showClipPlayback(clip) {
-    if (canUseVodPlayerForClip(clip)) {
-        await showClipVodPlayer(clip);
-        return;
-    }
-
-    await showClipIframe(clip);
-}
-
-function canUseVodPlayerForClip(clip) {
-    return Boolean(
-        CLIP_USE_VOD_PLAYER_IF_AVAILABLE &&
-        window.Twitch?.Player &&
-        clip?.video_id &&
-        Number.isFinite(Number(clip.vod_offset))
-    );
-}
-
-async function showClipVodPlayer(clip) {
-    await nextFrame();
-    await delay(500);
-
-    clipIframe = createClipPlayerHost();
-    clipPlayer = new Twitch.Player(clipIframe, {
-        width: '100%',
-        height: '100%',
-        video: formatTwitchVideoId(clip.video_id),
-        time: formatTwitchTime(getClipVodStartOffset(clip)),
-        parent: [location.hostname || 'localhost'],
-        autoplay: true,
-        muted: CLIP_IFRAME_MUTED
-    });
-
-    await waitForTwitchPlayerReady(clipPlayer);
-    forceClipPlayerAudio(clipPlayer);
-}
-
-async function showClipIframe(clip) {
-    const parent = location.hostname || 'localhost';
-    const params = new URLSearchParams({
-        clip: clip.id,
-        parent,
-        autoplay: 'true',
-        muted: String(CLIP_IFRAME_MUTED),
-        preload: 'metadata'
-    });
-
-    await nextFrame();
-    await delay(500);
-    clipIframe = createClipIframe();
-    await nextFrame();
-    const iframeReady = waitForClipIframeLoad(clipIframe);
-    clipIframe.src = `https://clips.twitch.tv/embed?${params.toString()}`;
-    await iframeReady;
-}
-
-function createClipPlayerHost() {
-    const host = document.createElement('div');
-    host.className = 'clip-player-host';
-    host.style.opacity = '1';
-    clipFrame.prepend(host);
-    return host;
-}
-
-function waitForTwitchPlayerReady(player) {
-    return new Promise(resolve => {
-        let isResolved = false;
-
-        const finish = () => {
-            if (isResolved) return;
-
-            isResolved = true;
-            clearTimeout(timeoutId);
-            resolve();
-        };
-
-        const timeoutId = setTimeout(finish, CLIP_IFRAME_LOAD_TIMEOUT_MS);
-        player.addEventListener(Twitch.Player.READY, finish);
-    });
-}
-
-function forceClipPlayerAudio(player) {
-    try {
-        player.setMuted(false);
-        player.setVolume(CLIP_PLAYER_VOLUME);
-        player.play();
-    } catch (error) {
-        console.warn('Не удалось программно включить звук Twitch Player:', error);
-    }
-}
-
-function formatTwitchVideoId(videoId) {
-    const value = String(videoId || '').trim();
-    return value.startsWith('v') ? value : `v${value}`;
-}
-
-function getClipVodStartOffset(clip) {
-    const vodOffset = Number(clip?.vod_offset);
-    const duration = Number(clip?.duration || 0);
-
-    if (!Number.isFinite(vodOffset)) return 0;
-
-    if (CLIP_VOD_OFFSET_MODE === 'end') {
-        return Math.max(0, vodOffset - (Number.isFinite(duration) ? duration : 0));
-    }
-
-    return Math.max(0, vodOffset);
-}
-
-function formatTwitchTime(totalSeconds) {
-    const seconds = Math.max(0, Math.floor(Number(totalSeconds) || 0));
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const restSeconds = seconds % 60;
-
-    return `${hours}h${minutes}m${restSeconds}s`;
-}
-
-function waitForClipIframeLoad(iframe) {
-    return new Promise(resolve => {
-        let isResolved = false;
-
-        const finish = () => {
-            if (isResolved) return;
-
-            isResolved = true;
-            clearTimeout(timeoutId);
-            iframe.removeEventListener('load', finish);
-            resolve();
-        };
-
-        const timeoutId = setTimeout(finish, CLIP_IFRAME_LOAD_TIMEOUT_MS);
-        iframe.addEventListener('load', finish, { once: true });
-    });
-}
-
-function createClipIframe() {
-    const iframe = document.createElement('iframe');
-    iframe.className = 'clip-iframe';
-    iframe.title = 'Twitch clip';
-    iframe.allow = 'autoplay; fullscreen';
-    iframe.allowFullscreen = true;
-    iframe.style.opacity = '1';
-    clipFrame.prepend(iframe);
-    return iframe;
-}
-
-async function hideClip() {
-    if (clipIframe) {
-        clipIframe.style.opacity = '0';
-    }
-
-    clipWrapper.classList.remove('show');
-    await delay(500);
-    resetClipPlayback();
-}
-
-function formatClipStats(clip) {
-    const views = Number(clip.view_count || 0).toLocaleString('ru-RU');
-    const duration = Math.round(Number(clip.duration || 0));
-    const marker = clip.is_featured ? 'FEATURED' : 'TOP_30D';
-    return `${marker} // 👀 ${views} // 🕑 ${duration}`;
-}
-
 function typeWriter(element, text, speed = 50) {
     return new Promise(resolve => {
         if (element.typingTimeout) clearTimeout(element.typingTimeout);
@@ -473,72 +226,6 @@ function typeWriter(element, text, speed = 50) {
     });
 }
 
-function ensureClipSoundUnlocked() {
-    if (!needsClipSoundUnlock()) {
-        clipSoundPanel?.classList.add('is-hidden');
-        return Promise.resolve();
-    }
-
-    showClipSoundPanel();
-
-    return new Promise(resolve => {
-        clipSoundUnlockResolve = resolve;
-    });
-}
-
-function needsClipSoundUnlock() {
-    const userActivation = navigator.userActivation;
-    const alreadyActivated = Boolean(userActivation?.hasBeenActive || userActivation?.isActive);
-    return CLIPS_ENABLED && !CLIP_IFRAME_MUTED && !alreadyActivated;
-}
-
-function showClipSoundPanelIfNeeded() {
-    if (!clipSoundPanel) return;
-
-    const needsSoundUnlock = needsClipSoundUnlock();
-
-    clipSoundPanel.classList.toggle('is-hidden', !needsSoundUnlock);
-
-    if (needsSoundUnlock) showClipSoundPanel();
-}
-
-function showClipSoundPanel() {
-    clipSoundPanel?.classList.remove('is-hidden');
-
-    if (clipSoundStatus) {
-        clipSoundStatus.textContent = 'Нажми один раз, чтобы браузер разрешил клипам запускаться со звуком. После этого overlay запустит рейды.';
-    }
-}
-
-async function unlockClipSound() {
-    await primeAudioContext();
-    clipSoundPanel?.classList.add('is-hidden');
-    clipSoundUnlockResolve?.();
-    clipSoundUnlockResolve = null;
-    console.log('Clip sound unlock received.');
-}
-
-async function primeAudioContext() {
-    const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContextCtor) return;
-
-    const audioContext = new AudioContextCtor();
-    const oscillator = audioContext.createOscillator();
-    const gain = audioContext.createGain();
-
-    gain.gain.value = 0;
-    oscillator.connect(gain);
-    gain.connect(audioContext.destination);
-    oscillator.start();
-
-    if (audioContext.state === 'suspended') {
-        await audioContext.resume();
-    }
-
-    oscillator.stop(audioContext.currentTime + 0.01);
-    setTimeout(() => audioContext.close().catch(() => { }), 50);
-}
-
 function delay(ms, signal) {
     return new Promise((resolve, reject) => {
         const timeoutId = setTimeout(resolve, ms);
@@ -548,8 +235,4 @@ function delay(ms, signal) {
             reject(new DOMException('Aborted', 'AbortError'));
         }, { once: true });
     });
-}
-
-function nextFrame() {
-    return new Promise(resolve => requestAnimationFrame(resolve));
 }
