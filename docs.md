@@ -27,7 +27,7 @@
 
 Звук запрашивается сразу: `video.muted = false`, `volume = 1`, `autoplay = true`, `playsInline = true`. В обычном браузере autoplay со звуком может быть заблокирован политикой браузера; тогда overlay включает native controls на самом `<video>` и пишет предупреждение в консоль. В OBS Browser Source ожидаемый путь - автозапуск `<video>` со звуком без iframe-ограничений Twitch embed.
 
-Блок клипа сверстан вокруг 16:9-области `.clip-frame`; высота wrapper складывается из header, video frame и meta-панели. Завершение показа идет по событию `ended` у `<video>` плюс небольшой буфер. Если событие не пришло, используется timeout от длительности клипа.
+Блок клипа сверстан вокруг 16:9-области `.clip-frame`; высота wrapper складывается из header, video frame и meta-панели. Завершение показа идет по событию `ended` у `<video>` плюс задержка `CLIP_AFTER_END_DELAY_MS`. Если событие не пришло, используется timeout от длительности клипа.
 
 ## Что за что отвечает
 
@@ -52,6 +52,7 @@
 - `STREAM_TITLE_IF_EMPTY` и `STREAM_CATEGORY_IF_EMPTY` - тексты, если у рейдера нет активного стрима.
 - `CLIPS_ENABLED` - включает показ клипа после карточки рейда.
 - `CLIP_FETCH_LIMIT`, `CLIP_LOOKBACK_DAYS`, `CLIP_MAX_DURATION_SECONDS` - параметры выборки клипа.
+- `CLIP_AFTER_END_DELAY_MS` - сколько миллисекунд держать клиповый блок на экране после окончания `<video>`.
 
 ## Запуск
 

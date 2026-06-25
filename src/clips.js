@@ -4,7 +4,7 @@ const TWITCH_SO_CLIP_URL = 'https://twitch.so/pclipsmid/';
 const CLIP_VIDEO_REQUEST_TIMEOUT = 8000;
 const CLIP_VIDEO_READY_TIMEOUT = 10000;
 const CLIP_VIDEO_FALLBACK_SHOW_TIME = 30000;
-const CLIP_VIDEO_END_BUFFER_MS = 1000;
+const DEFAULT_CLIP_AFTER_END_DELAY_MS = 2000;
 const CLIP_VIDEO_QUALITY = 'best';
 
 const clipWrapper = document.querySelector('.clip-wrapper');
@@ -274,7 +274,7 @@ function waitForClipVideoEnd(video, clip) {
 
         video.addEventListener('ended', finish, { once: true });
         video.addEventListener('error', finish, { once: true });
-    }).then(() => clipDelay(CLIP_VIDEO_END_BUFFER_MS));
+    }).then(() => clipDelay(getClipAfterEndDelay()));
 }
 
 function getClipFallbackDisplayTime(clip) {
@@ -284,7 +284,7 @@ function getClipFallbackDisplayTime(clip) {
         return CLIP_VIDEO_FALLBACK_SHOW_TIME;
     }
 
-    return Math.ceil(durationMs) + CLIP_VIDEO_READY_TIMEOUT + CLIP_VIDEO_END_BUFFER_MS;
+    return Math.ceil(durationMs) + CLIP_VIDEO_READY_TIMEOUT + getClipAfterEndDelay();
 }
 
 function resetClipVideo() {
@@ -339,6 +339,20 @@ function setClipStatus(status) {
 
 function getPlaybackStatus(source) {
     return source === 'graphql' ? 'GRAPHQL' : 'FALLBACK';
+}
+
+function getClipAfterEndDelay() {
+    const delayMs = Number(
+        typeof CLIP_AFTER_END_DELAY_MS === 'undefined'
+            ? DEFAULT_CLIP_AFTER_END_DELAY_MS
+            : CLIP_AFTER_END_DELAY_MS
+    );
+
+    if (!Number.isFinite(delayMs) || delayMs < 0) {
+        return DEFAULT_CLIP_AFTER_END_DELAY_MS;
+    }
+
+    return delayMs;
 }
 
 function isAutoplayBlocked(error) {
