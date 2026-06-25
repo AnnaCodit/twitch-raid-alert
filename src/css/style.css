@@ -15,6 +15,7 @@ body {
     overflow: hidden;
     font-family: 'Courier New', monospace;
     /* background: url('https://www.filterblade.xyz/assets/img/Background_Voll.jpg') no-repeat center center black; */
+    background: #111;
     background-size: cover;
 }
 
