@@ -97,14 +97,15 @@ function startInitialTriggers() {
     }
 }
 
-function initRaid(username, viewers) {
+function initRaid(username, viewers, options = {}) {
     raidQueue.push({
         username,
         viewers,
         user: null,
         stream: null,
         channelInfo: null,
-        clip: null
+        clip: null,
+        clipOnly: Boolean(options.clipOnly)
     });
 
     processQueue();
@@ -144,7 +145,11 @@ async function processQueue() {
 
     try {
         await enrichRaidData(data);
-        await showRaid(data);
+        if (data.clipOnly) {
+            await showClip(data.clip);
+        } else {
+            await showRaid(data);
+        }
     } catch (error) {
         console.error('Ошибка показа рейда:', error);
     } finally {
@@ -187,8 +192,13 @@ function showTestRaidFromQuery() {
     if (!username) return false;
 
     const viewers = Math.max(1, Number.parseInt(params.get('test_viewers') || '100', 10) || 100);
-    initRaid(username, viewers);
+    const clipOnly = isTruthyQueryParam(params.get('test_clip_only') || params.get('clip_only'));
+    initRaid(username, viewers, { clipOnly });
     return true;
+}
+
+function isTruthyQueryParam(value) {
+    return ['1', 'true', 'yes', 'on'].includes(String(value || '').trim().toLowerCase());
 }
 
 function normalizeTestChannel(value) {

@@ -78,4 +78,10 @@ http://localhost:8765/index.html?test_channel=fra3a
 http://localhost:8765/index.html?test_channel=fra3a&test_viewers=42
 ```
 
+Для отладки только клипа без показа raid-карточки добавь `test_clip_only=1`:
+
+```text
+http://localhost:8765/index.html?test_channel=fra3a&test_clip_only=1
+```
+
 Локальный сервер в проекте больше не зафиксирован: можно использовать любой удобный способ раздачи `src/` по HTTP или внешний хостинг.
