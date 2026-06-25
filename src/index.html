@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Глитч-карточка CRT</title>
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/clips.css">
 </head>
 
 <body>
@@ -34,10 +35,26 @@
                     <span class="value">0</span>
                 </div>
                 <div class="text-line raid-description">описание канала рейдера</div>
-                <div class="text-line raid-card-title text-glow">
-                    Привет Рейдеры!
-                    <img src="images/hello-raiders.avif" alt="">
+                <div class="text-line raid-card-title text-glow"> Привет Рейдеры! <img src="images/hello-raiders.avif"
+                        alt="">
                 </div>
+            </div>
+        </div>
+    </div>
+    <div class="clip-wrapper">
+        <div class="clip-terminal">
+            <div class="clip-terminal-header">
+                <span class="clip-terminal-dot"></span>
+                <span class="clip-terminal-title">RAIDER_CLIP_PLAYBACK</span>
+                <span class="clip-terminal-status">READY</span>
+            </div>
+            <div class="clip-frame">
+                <iframe class="clip-iframe" title="Twitch clip" allow="autoplay; fullscreen" allowfullscreen></iframe>
+                <div class="clip-scanlines"></div>
+            </div>
+            <div class="clip-meta">
+                <div class="clip-title text-glow"></div>
+                <div class="clip-stats"></div>
             </div>
         </div>
     </div>

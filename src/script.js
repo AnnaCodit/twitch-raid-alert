@@ -5,6 +5,10 @@ const raid_viewers = document.querySelector('.raid-viewers .value');
 const streamTitle = document.querySelector('.raid-stream-title');
 const category = document.querySelector('.raid-stream-category .name');
 const description = document.querySelector('.raid-description');
+const clipWrapper = document.querySelector('.clip-wrapper');
+const clipIframe = document.querySelector('.clip-iframe');
+const clipTitle = document.querySelector('.clip-title');
+const clipStats = document.querySelector('.clip-stats');
 const DEFAULT_AVATAR = avatarEl.style.backgroundImage;
 const TWITCH_REQUEST_TIMEOUT = 8000;
 
@@ -29,7 +33,8 @@ function initRaid(username, viewers) {
         viewers,
         user: null,
         stream: null,
-        channelInfo: null
+        channelInfo: null,
+        clip: null
     });
 
     processQueue();
@@ -49,6 +54,7 @@ async function enrichRaidData(raidData) {
             raidData.user = user;
             raidData.stream = streamData?.data?.[0] || null;
             raidData.channelInfo = channelData?.data?.[0] || null;
+            raidData.clip = await fetchRaiderClip(user.id);
         } else {
             console.warn('Twitch user not found for raid:', raidData.username);
         }
@@ -90,11 +96,39 @@ function showTestRaid() {
             title: "⚡ ПРОДОЛЖАЮ ПОЗОРИТЬСЯ 😩 НО НЕ СДАЮСЬ 😭 БЕЗ ПОНЯТИЯ ЧТО Я ДЕЛАЮ 💀 ПАРА ПРИКОЛОВ 🎁 НОЛЬ ХАЙПА 😪 ТОЛЬКО ДЛЯ СПЯЩИХ БИЗНЕСМЕНОВ 🌙🌚",
             game_name: "Software & Game Dev"
         },
-        channelInfo: null
+        channelInfo: null,
+        clip: {
+            id: "IncredulousAbstemiousFennelImGlitch",
+            title: "Тестовый клип рейдера",
+            view_count: 1337,
+            created_at: new Date().toISOString(),
+            duration: 24,
+            thumbnail_url: "https://clips-media-assets2.twitch.tv/AT-cm%7C517806597-preview-480x272.jpg",
+            is_featured: true
+        }
     };
     // Also use queue for test
     raidQueue.push(data);
     processQueue();
+}
+
+function showTestRaidFromQuery() {
+    const params = new URLSearchParams(window.location.search);
+    const username = normalizeTestChannel(params.get('test_channel'));
+
+    if (!username) return false;
+
+    const viewers = Math.max(1, Number.parseInt(params.get('test_viewers') || '100', 10) || 100);
+    initRaid(username, viewers);
+    return true;
+}
+
+function normalizeTestChannel(value) {
+    return String(value || '')
+        .trim()
+        .replace(/^[@#]+/, '')
+        .replace(/[^a-zA-Z0-9_]/g, '')
+        .slice(0, 25);
 }
 
 async function showRaid(data) {
@@ -133,6 +167,83 @@ async function showRaid(data) {
 
     // Wait for hide animation (0.5s from CSS)
     await delay(600); // 600ms to be safe
+
+    await showClip(data.clip);
+}
+
+async function fetchRaiderClip(broadcasterId) {
+    if (!CLIPS_ENABLED) return null;
+
+    const endedAt = new Date();
+    const startedAt = new Date(endedAt.getTime() - CLIP_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
+    const params = new URLSearchParams({
+        broadcaster_id: broadcasterId,
+        started_at: startedAt.toISOString(),
+        ended_at: endedAt.toISOString(),
+        first: String(CLIP_FETCH_LIMIT)
+    });
+    const clipsData = await fetchTwitchAPI(`clips?${params.toString()}`);
+    const clips = clipsData?.data || [];
+    const shortClips = clips.filter(clip => Number(clip.duration || 0) <= CLIP_MAX_DURATION_SECONDS);
+
+    if (shortClips.length === 0) return null;
+
+    const featuredClip = shortClips
+        .filter(clip => clip.is_featured)
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+
+    if (featuredClip) return featuredClip;
+
+    return shortClips
+        .slice()
+        .sort((a, b) => Number(b.view_count || 0) - Number(a.view_count || 0))[0];
+}
+
+async function showClip(clip) {
+    if (!CLIPS_ENABLED || !clip || !clipWrapper || !clipIframe) return;
+
+    resetClipPlayback();
+    clipTitle.textContent = clip.title || 'CLIP DATA LOADED';
+    clipStats.textContent = formatClipStats(clip);
+    clipWrapper.classList.add('show');
+
+    await showClipIframe(clip);
+    await delay(CLIP_SHOW_TIME);
+    await hideClip();
+}
+
+function resetClipPlayback() {
+    clipIframe.classList.remove('show');
+    clipIframe.removeAttribute('src');
+}
+
+async function showClipIframe(clip) {
+    const parent = location.hostname || 'localhost';
+    const params = new URLSearchParams({
+        clip: clip.id,
+        parent,
+        autoplay: 'true',
+        muted: String(CLIP_IFRAME_MUTED),
+        preload: 'metadata'
+    });
+
+    clipIframe.classList.add('show');
+    await nextFrame();
+    await delay(500);
+    clipIframe.src = `https://clips.twitch.tv/embed?${params.toString()}`;
+}
+
+async function hideClip() {
+    clipWrapper.classList.remove('show');
+    await delay(500);
+    resetClipPlayback();
+}
+
+function formatClipStats(clip) {
+    const views = Number(clip.view_count || 0).toLocaleString('ru-RU');
+    const duration = Math.round(Number(clip.duration || 0));
+    const marker = clip.is_featured ? 'FEATURED' : 'TOP_30D';
+    return `${marker} // ${views} просмотров // ${duration} сек`;
 }
 
 function typeWriter(element, text, speed = 50) {
@@ -265,6 +376,10 @@ function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function nextFrame() {
+    return new Promise(resolve => requestAnimationFrame(resolve));
+}
+
 function fetchWithTimeout(url, options, timeout) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
@@ -273,7 +388,9 @@ function fetchWithTimeout(url, options, timeout) {
         .finally(() => clearTimeout(timeoutId));
 }
 
-if (TEST_MODE) {
+if (showTestRaidFromQuery()) {
+    console.log('Запущен тестовый raid из URL параметра test_channel.');
+} else if (TEST_MODE) {
     SHOW_TIME = TEST_SHOW_TIME;
     showTestRaid();
 }
