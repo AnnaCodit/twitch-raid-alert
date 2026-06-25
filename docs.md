@@ -4,9 +4,9 @@
 
 ## Основной сценарий
 
-1. `src/index.html` загружает зависимости в порядке: `config.js`, `tmi.min.js`, `script.js`.
-2. `src/script.js` проверяет user access token Twitch. Если токена нет, показывает простую панель Twitch Device Code Flow.
-3. После авторизации код подключается к Twitch-чату через `tmi.Client` на канал из `CHANNEL`.
+1. `src/index.html` загружает зависимости в порядке: `config.js`, `auth.js`, `tmi.min.js`, Twitch Player API, `script.js`.
+2. `src/auth.js` проверяет user access token Twitch. Если токена нет, показывает простую панель Twitch Device Code Flow.
+3. После авторизации `auth.js` вызывает callback из `script.js`, а основная логика подключается к Twitch-чату через `tmi.Client` на канал из `CHANNEL`.
 4. При событии `raided` код сразу кладет базовые данные рейда (`username`, `viewers`) в `raidQueue`, чтобы сохранить порядок прихода рейдов.
 5. Когда рейд доходит до показа, код пробует обогатить его через Helix API:
    - `users?login=...` для аватара и описания рейдера;
@@ -38,7 +38,8 @@
 ## Что за что отвечает
 
 - `src/index.html` - разметка виджета для OBS: карточка рейда, аватар, ник, название стрима, категория, счетчик зрителей.
-- `src/script.js` - вся runtime-логика: Twitch Device Code Flow, refresh token, подключение к Twitch-чату, обработка рейдов, очередь, запросы Helix API с таймаутом, выбор клипа рейдера, кеширование token в `localStorage`, показ и скрытие карточки.
+- `src/auth.js` - Twitch Device Code Flow, refresh token, кеширование token в `localStorage`, auth UI, Helix-запросы через `fetchTwitchAPI()`.
+- `src/script.js` - основная runtime-логика: подключение к Twitch-чату, обработка рейдов, очередь, выбор клипа рейдера, показ и скрытие карточки/клипа.
 - `src/config.js` - публичные настройки: Twitch `CLIENT_ID`, канал, длительность показа, тестовый режим, fallback-тексты для оффлайн-рейда.
 - `src/tmi.min.js` - vendored-библиотека TMI.js для подключения к Twitch-чату.
 - `src/css/style.css` - layout и визуальный стиль карточки: размеры, цвета, позиционирование, состояние `.show`, типографика.
