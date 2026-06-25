@@ -17,11 +17,15 @@
 8. После скрытия карточки, если `CLIPS_ENABLED = true`, код показывает клип рейдера в нижней трети экрана.
 9. Если данные стрима и канала не найдены, используются fallback-тексты из `config.js`.
 
+У изменяемых CSS/JS-ресурсов в `index.html` может быть query-version вида `?v=...`: это простой cache-bust для браузера и OBS Browser Source.
+
 ## Клип рейдера
 
 Клип выбирается через Twitch Helix `clips`: запрашивается до `CLIP_FETCH_LIMIT` клипов рейдера за последние `CLIP_LOOKBACK_DAYS` дней, затем отбрасываются клипы длиннее `CLIP_MAX_DURATION_SECONDS`. Если среди оставшихся есть `is_featured=true`, берется самый свежий featured-клип по `created_at`. Если featured-клипов нет, берется клип с максимальным `view_count`.
 
 Показ идет через официальный Twitch clips iframe `clips.twitch.tv/embed`. Прямой HTML `<video>` не используется: Twitch Helix не отдает стабильный официальный MP4 URL для клипа.
+
+Блок клипа сверстан вокруг настоящей 16:9-области `.clip-frame`; высота wrapper не фиксируется вручную, а складывается из header, 16:9-окна и meta-панели. Twitch iframe создается только на время показа клипа как прямой child `body` и позиционируется поверх `.clip-frame`. Это важно для autoplay: Twitch embed учитывает видимость, размер и перекрытие плеера, поэтому iframe не должен лежать внутри скрываемой/анимируемой обертки или под декоративными scanline-слоями.
 
 Для максимально надежного iframe fallback лучше открывать overlay в OBS через локальный HTTP-адрес, например `http://localhost:8765/index.html`, а не напрямую как `file://.../src/index.html`: Twitch embed требует корректный `parent` domain.
 
@@ -47,7 +51,7 @@
 - `CLIPS_ENABLED` - включает показ клипа после карточки рейда.
 - `CLIP_FETCH_LIMIT`, `CLIP_LOOKBACK_DAYS`, `CLIP_MAX_DURATION_SECONDS` - параметры выборки клипа.
 - `CLIP_SHOW_TIME` - максимальная длительность показа клипа.
-- `CLIP_IFRAME_MUTED` - включает mute для Twitch iframe; так autoplay обычно надежнее.
+- `CLIP_IFRAME_MUTED` - включает mute для Twitch iframe. Значение `false` запрашивает клип со звуком, но обычный браузер может заблокировать autoplay со звуком до пользовательского жеста; OBS Browser Source обычно ведет себя мягче.
 
 ## Запуск
 

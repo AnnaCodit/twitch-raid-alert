@@ -1,29 +1,26 @@
 .clip-wrapper {
     position: fixed;
     left: 50%;
-    bottom: 5vh;
-    width: min(92vw, 960px);
-    height: 33vh;
-    min-height: 300px;
+    bottom: 4vh;
+    width: min(92vw, calc((100vh - 130px) * 16 / 9), 1120px);
     transform: translate(-50%, 120%);
     opacity: 0;
-    visibility: hidden;
-    transition: transform 0.45s ease-in-out, opacity 0.45s ease-in-out, visibility 0.45s;
+    pointer-events: none;
+    transition: transform 0.45s ease-in-out, opacity 0.45s ease-in-out;
     z-index: 5;
 }
 
 .clip-wrapper.show {
     transform: translate(-50%, 0);
     opacity: 1;
-    visibility: visible;
+    pointer-events: auto;
     animation: blink-effect 0.3s 2;
 }
 
 .clip-terminal {
     position: relative;
-    height: 100%;
     display: grid;
-    grid-template-rows: 34px 1fr auto;
+    grid-template-rows: 34px auto auto;
     overflow: hidden;
     border: 2px solid var(--primary-color);
     border-radius: 8px;
@@ -38,7 +35,7 @@
     position: absolute;
     inset: 0;
     pointer-events: none;
-    z-index: 4;
+    z-index: 0;
     background:
         linear-gradient(90deg, rgba(0, 255, 102, 0.08), transparent 18%, transparent 82%, rgba(0, 255, 102, 0.08)),
         repeating-linear-gradient(to bottom,
@@ -49,6 +46,8 @@
 }
 
 .clip-terminal-header {
+    position: relative;
+    z-index: 1;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -84,30 +83,25 @@
 
 .clip-frame {
     position: relative;
-    min-height: 0;
+    z-index: 1;
+    width: 100%;
+    aspect-ratio: 16 / 9;
     background: #000;
 }
 
 .clip-iframe {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    display: none;
+    position: fixed;
     border: 0;
-    object-fit: contain;
     background: #000;
-}
-
-.clip-iframe.show {
-    display: block;
+    z-index: 6;
+    transition: opacity 0.2s ease-in-out;
 }
 
 .clip-scanlines {
     position: absolute;
     inset: 0;
     pointer-events: none;
-    z-index: 3;
+    z-index: 0;
     background: repeating-linear-gradient(to bottom,
             rgba(0, 255, 100, 0.08) 0,
             rgba(0, 255, 100, 0.08) 1px,
@@ -116,6 +110,8 @@
 }
 
 .clip-meta {
+    position: relative;
+    z-index: 1;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 14px;
@@ -142,4 +138,16 @@
     color: var(--secondary-color);
     font-size: 14px;
     white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+    .clip-meta {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 4px;
+    }
+
+    .clip-stats {
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
 }
