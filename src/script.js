@@ -30,8 +30,6 @@ let twitchAuth = loadTwitchAuth();
 let devicePollAbort = null;
 let clipIframe = null;
 
-window.addEventListener('resize', syncClipIframePosition);
-
 authConnectButton?.addEventListener('click', () => {
     startDeviceAuthorization().catch(error => showAuthPanel(`Ошибка авторизации: ${error.message}`, true));
 });
@@ -293,7 +291,6 @@ async function showClipIframe(clip) {
     await nextFrame();
     await delay(500);
     clipIframe = createClipIframe();
-    syncClipIframePosition();
     await nextFrame();
     clipIframe.src = `https://clips.twitch.tv/embed?${params.toString()}`;
 }
@@ -304,18 +301,8 @@ function createClipIframe() {
     iframe.title = 'Twitch clip';
     iframe.allow = 'autoplay; fullscreen';
     iframe.style.opacity = '1';
-    document.body.appendChild(iframe);
+    clipFrame.prepend(iframe);
     return iframe;
-}
-
-function syncClipIframePosition() {
-    if (!clipIframe || !clipFrame || !clipWrapper?.classList.contains('show')) return;
-
-    const rect = clipFrame.getBoundingClientRect();
-    clipIframe.style.left = `${rect.left}px`;
-    clipIframe.style.top = `${rect.top}px`;
-    clipIframe.style.width = `${rect.width}px`;
-    clipIframe.style.height = `${rect.height}px`;
 }
 
 async function hideClip() {
