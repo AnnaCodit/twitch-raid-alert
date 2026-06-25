@@ -27,6 +27,7 @@
     background: rgba(0, 10, 0, 0.92);
     box-shadow: 0 0 22px var(--primary-color), inset 0 0 18px rgba(0, 255, 102, 0.25);
     color: var(--primary-color);
+    animation: clip-glow-drift 6s ease-in-out infinite alternate;
 }
 
 .clip-terminal::before {
@@ -84,11 +85,26 @@
 .clip-frame {
     position: relative;
     z-index: 1;
+    overflow: hidden;
     width: 100%;
     aspect-ratio: 16 / 9;
     background: #000;
     background-position: center;
     background-size: cover;
+}
+
+.clip-frame::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+    background:
+        radial-gradient(circle at 20% 18%, rgba(0, 255, 102, 0.16), transparent 28%),
+        linear-gradient(115deg, rgba(0, 255, 102, 0.1), transparent 42%, rgba(184, 255, 212, 0.08));
+    mix-blend-mode: screen;
+    opacity: 0.28;
+    animation: clip-video-tint-drift 9s ease-in-out infinite alternate;
 }
 
 .clip-video {
@@ -106,7 +122,7 @@
     position: absolute;
     inset: 0;
     pointer-events: none;
-    z-index: 2;
+    z-index: 4;
     background: repeating-linear-gradient(to bottom,
             rgba(0, 255, 100, 0.08) 0,
             rgba(0, 255, 100, 0.08) 1px,
@@ -129,6 +145,7 @@
     background: rgba(0, 20, 0, 0.88);
     box-shadow: 0 0 22px var(--primary-color), inset 0 0 18px rgba(0, 255, 102, 0.18);
     font-weight: bold;
+    animation: clip-meta-glow-drift 6.5s ease-in-out infinite alternate;
 }
 
 .clip-title {
@@ -159,5 +176,45 @@
     .clip-stats {
         overflow: hidden;
         text-overflow: ellipsis;
+    }
+}
+
+@keyframes clip-glow-drift {
+    0% {
+        box-shadow: 0 0 18px rgba(0, 255, 102, 0.8), inset 0 0 14px rgba(0, 255, 102, 0.2);
+    }
+
+    45% {
+        box-shadow: 0 0 28px rgba(0, 255, 102, 0.92), inset 0 0 22px rgba(0, 255, 102, 0.3);
+    }
+
+    100% {
+        box-shadow: 0 0 36px rgba(0, 255, 102, 0.72), inset 0 0 28px rgba(184, 255, 212, 0.22);
+    }
+}
+
+@keyframes clip-meta-glow-drift {
+    0% {
+        box-shadow: 0 0 16px rgba(0, 255, 102, 0.75), inset 0 0 14px rgba(0, 255, 102, 0.14);
+    }
+
+    100% {
+        box-shadow: 0 0 30px rgba(0, 255, 102, 0.9), inset 0 0 24px rgba(184, 255, 212, 0.18);
+    }
+}
+
+@keyframes clip-video-tint-drift {
+    0% {
+        transform: translate3d(-2%, -1%, 0) scale(1.04);
+        opacity: 0.2;
+    }
+
+    50% {
+        opacity: 0.34;
+    }
+
+    100% {
+        transform: translate3d(2%, 1%, 0) scale(1.06);
+        opacity: 0.27;
     }
 }
