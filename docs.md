@@ -29,6 +29,10 @@
 
 Длительность показа клипа считается по `clip.duration` из Helix: фактическая длительность клипа плюс `CLIP_END_BUFFER_MS`. Отсчет начинается после события `load` у Twitch iframe; если iframe не отдал `load`, отсчет стартует после fallback-таймаута `CLIP_IFRAME_LOAD_TIMEOUT_MS`. Официальный clips iframe Twitch не поддерживает interactive Player API, поэтому надежного события старта или окончания именно видео из iframe нет. Если `duration` не пришла или некорректна, используется fallback `CLIP_SHOW_TIME`.
 
+Для autoplay со звуком браузеру нужна пользовательская активация домена. Если клипы включены и `CLIP_IFRAME_MUTED = false`, overlay показывает панель `Clip sound unlock` и не запускает chat/test-триггеры, пока звук не подготовлен. В OBS перед стримом открой Browser Source через `Interact` и один раз нажми `Включить звук клипов`; это дает странице user activation, которую top frame делегирует Twitch iframe через `allow="autoplay"`. Без такого клика браузер/OBS может принудительно запустить Twitch clip muted.
+
+Для клипов с заполненными `video_id` и `vod_offset` overlay использует официальный Twitch Player API и воспроизводит соответствующий VOD с нужного offset, скрывая его через `clip.duration`. Это позволяет вызвать `setMuted(false)` и `setVolume(CLIP_PLAYER_VOLUME)`. Если VOD player стартует с места, похожего на конец клипа, используется `CLIP_VOD_OFFSET_MODE = "end"`: старт считается как `vod_offset - duration`. Если у клипа нет VOD offset или Twitch Player API не загрузился, используется прежний clips iframe fallback.
+
 Для максимально надежного iframe fallback лучше открывать overlay в OBS через локальный HTTP-адрес, например `http://localhost:8765/index.html`, а не напрямую как `file://.../src/index.html`: Twitch embed требует корректный `parent` domain.
 
 ## Что за что отвечает
@@ -56,6 +60,9 @@
 - `CLIP_END_BUFFER_MS` - запас после `clip.duration`, чтобы iframe успел догрузиться и не исчезал слишком рано.
 - `CLIP_IFRAME_LOAD_TIMEOUT_MS` - сколько максимум ждать событие `load` от Twitch iframe перед стартом отсчета длительности.
 - `CLIP_IFRAME_MUTED` - включает mute для Twitch iframe. Значение `false` запрашивает клип со звуком, но обычный браузер может заблокировать autoplay со звуком до пользовательского жеста; OBS Browser Source обычно ведет себя мягче.
+- `CLIP_USE_VOD_PLAYER_IF_AVAILABLE` - включает VOD-player режим для клипов с `video_id` и `vod_offset`, чтобы можно было программно выставить звук.
+- `CLIP_PLAYER_VOLUME` - громкость для Twitch Player API в VOD-player режиме, от `0` до `1`.
+- `CLIP_VOD_OFFSET_MODE` - как трактовать `vod_offset` для VOD-player режима: `"start"` использует offset как начало, `"end"` стартует с `vod_offset - duration`.
 
 ## Запуск
 

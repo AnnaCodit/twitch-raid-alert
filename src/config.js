@@ -18,3 +18,6 @@ const CLIP_SHOW_TIME = 30000;
 const CLIP_END_BUFFER_MS = 3000;
 const CLIP_IFRAME_LOAD_TIMEOUT_MS = 7000;
 const CLIP_IFRAME_MUTED = false;
+const CLIP_USE_VOD_PLAYER_IF_AVAILABLE = true;
+const CLIP_PLAYER_VOLUME = 1;
+const CLIP_VOD_OFFSET_MODE = "end"; // "start" or "end"

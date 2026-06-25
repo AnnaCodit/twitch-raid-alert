@@ -16,6 +16,9 @@ const authUrl = document.querySelector('.auth-panel__url');
 const authCode = document.querySelector('.auth-panel__code');
 const authConnectButton = document.querySelector('.auth-panel__connect');
 const authResetButton = document.querySelector('.auth-panel__reset');
+const clipSoundPanel = document.querySelector('.clip-sound-panel');
+const clipSoundStatus = document.querySelector('.clip-sound-panel__status');
+const clipSoundButton = document.querySelector('.clip-sound-panel__button');
 const DEFAULT_AVATAR = avatarEl.style.backgroundImage;
 const TWITCH_REQUEST_TIMEOUT = 8000;
 const TWITCH_AUTH_STORAGE_KEY = 'badge-on-raid:twitch-auth';
@@ -29,6 +32,8 @@ let initialTriggersStarted = false;
 let twitchAuth = loadTwitchAuth();
 let devicePollAbort = null;
 let clipIframe = null;
+let clipPlayer = null;
+let clipSoundUnlockResolve = null;
 
 authConnectButton?.addEventListener('click', () => {
     startDeviceAuthorization().catch(error => showAuthPanel(`Ошибка авторизации: ${error.message}`, true));
@@ -37,6 +42,14 @@ authConnectButton?.addEventListener('click', () => {
 authResetButton?.addEventListener('click', () => {
     resetAuth();
     showAuthPanel('Токен сброшен. Нажми "Подключить Twitch", чтобы авторизоваться заново.');
+});
+
+clipSoundButton?.addEventListener('click', () => {
+    unlockClipSound().catch(error => {
+        if (clipSoundStatus) {
+            clipSoundStatus.textContent = `Не удалось подготовить звук: ${error.message}`;
+        }
+    });
 });
 
 boot().catch(error => showAuthPanel(`Ошибка запуска: ${error.message}`, true));
@@ -65,6 +78,7 @@ async function boot() {
     }
 
     hideAuthPanel();
+    await ensureClipSoundUnlocked();
     startTwitchChat();
     startInitialTriggers();
 }
@@ -276,7 +290,7 @@ async function showClip(clip) {
     clipStats.textContent = formatClipStats(clip);
     clipWrapper.classList.add('show');
 
-    await showClipIframe(clip);
+    await showClipPlayback(clip);
     await delay(getClipDisplayTime(clip));
     await hideClip();
 }
@@ -292,10 +306,53 @@ function getClipDisplayTime(clip) {
 }
 
 function resetClipPlayback() {
+    if (clipPlayer?.destroy) {
+        clipPlayer.destroy();
+    }
+
+    clipPlayer = null;
+
     if (!clipIframe) return;
 
     clipIframe.remove();
     clipIframe = null;
+}
+
+async function showClipPlayback(clip) {
+    if (canUseVodPlayerForClip(clip)) {
+        await showClipVodPlayer(clip);
+        return;
+    }
+
+    await showClipIframe(clip);
+}
+
+function canUseVodPlayerForClip(clip) {
+    return Boolean(
+        CLIP_USE_VOD_PLAYER_IF_AVAILABLE &&
+        window.Twitch?.Player &&
+        clip?.video_id &&
+        Number.isFinite(Number(clip.vod_offset))
+    );
+}
+
+async function showClipVodPlayer(clip) {
+    await nextFrame();
+    await delay(500);
+
+    clipIframe = createClipPlayerHost();
+    clipPlayer = new Twitch.Player(clipIframe, {
+        width: '100%',
+        height: '100%',
+        video: formatTwitchVideoId(clip.video_id),
+        time: formatTwitchTime(getClipVodStartOffset(clip)),
+        parent: [location.hostname || 'localhost'],
+        autoplay: true,
+        muted: CLIP_IFRAME_MUTED
+    });
+
+    await waitForTwitchPlayerReady(clipPlayer);
+    forceClipPlayerAudio(clipPlayer);
 }
 
 async function showClipIframe(clip) {
@@ -315,6 +372,68 @@ async function showClipIframe(clip) {
     const iframeReady = waitForClipIframeLoad(clipIframe);
     clipIframe.src = `https://clips.twitch.tv/embed?${params.toString()}`;
     await iframeReady;
+}
+
+function createClipPlayerHost() {
+    const host = document.createElement('div');
+    host.className = 'clip-player-host';
+    host.style.opacity = '1';
+    clipFrame.prepend(host);
+    return host;
+}
+
+function waitForTwitchPlayerReady(player) {
+    return new Promise(resolve => {
+        let isResolved = false;
+
+        const finish = () => {
+            if (isResolved) return;
+
+            isResolved = true;
+            clearTimeout(timeoutId);
+            resolve();
+        };
+
+        const timeoutId = setTimeout(finish, CLIP_IFRAME_LOAD_TIMEOUT_MS);
+        player.addEventListener(Twitch.Player.READY, finish);
+    });
+}
+
+function forceClipPlayerAudio(player) {
+    try {
+        player.setMuted(false);
+        player.setVolume(CLIP_PLAYER_VOLUME);
+        player.play();
+    } catch (error) {
+        console.warn('Не удалось программно включить звук Twitch Player:', error);
+    }
+}
+
+function formatTwitchVideoId(videoId) {
+    const value = String(videoId || '').trim();
+    return value.startsWith('v') ? value : `v${value}`;
+}
+
+function getClipVodStartOffset(clip) {
+    const vodOffset = Number(clip?.vod_offset);
+    const duration = Number(clip?.duration || 0);
+
+    if (!Number.isFinite(vodOffset)) return 0;
+
+    if (CLIP_VOD_OFFSET_MODE === 'end') {
+        return Math.max(0, vodOffset - (Number.isFinite(duration) ? duration : 0));
+    }
+
+    return Math.max(0, vodOffset);
+}
+
+function formatTwitchTime(totalSeconds) {
+    const seconds = Math.max(0, Math.floor(Number(totalSeconds) || 0));
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const restSeconds = seconds % 60;
+
+    return `${hours}h${minutes}m${restSeconds}s`;
 }
 
 function waitForClipIframeLoad(iframe) {
@@ -340,6 +459,7 @@ function createClipIframe() {
     iframe.className = 'clip-iframe';
     iframe.title = 'Twitch clip';
     iframe.allow = 'autoplay; fullscreen';
+    iframe.allowFullscreen = true;
     iframe.style.opacity = '1';
     clipFrame.prepend(iframe);
     return iframe;
@@ -599,6 +719,72 @@ function showAuthPanel(message, isError = false) {
 
 function hideAuthPanel() {
     authPanel?.classList.add('is-hidden');
+}
+
+function ensureClipSoundUnlocked() {
+    if (!needsClipSoundUnlock()) {
+        clipSoundPanel?.classList.add('is-hidden');
+        return Promise.resolve();
+    }
+
+    showClipSoundPanel();
+
+    return new Promise(resolve => {
+        clipSoundUnlockResolve = resolve;
+    });
+}
+
+function needsClipSoundUnlock() {
+    const userActivation = navigator.userActivation;
+    const alreadyActivated = Boolean(userActivation?.hasBeenActive || userActivation?.isActive);
+    return CLIPS_ENABLED && !CLIP_IFRAME_MUTED && !alreadyActivated;
+}
+
+function showClipSoundPanelIfNeeded() {
+    if (!clipSoundPanel) return;
+
+    const needsSoundUnlock = needsClipSoundUnlock();
+
+    clipSoundPanel.classList.toggle('is-hidden', !needsSoundUnlock);
+
+    if (needsSoundUnlock) showClipSoundPanel();
+}
+
+function showClipSoundPanel() {
+    clipSoundPanel?.classList.remove('is-hidden');
+
+    if (clipSoundStatus) {
+        clipSoundStatus.textContent = 'Нажми один раз, чтобы браузер разрешил клипам запускаться со звуком. После этого overlay запустит рейды.';
+    }
+}
+
+async function unlockClipSound() {
+    await primeAudioContext();
+    clipSoundPanel?.classList.add('is-hidden');
+    clipSoundUnlockResolve?.();
+    clipSoundUnlockResolve = null;
+    console.log('Clip sound unlock received.');
+}
+
+async function primeAudioContext() {
+    const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextCtor) return;
+
+    const audioContext = new AudioContextCtor();
+    const oscillator = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+
+    gain.gain.value = 0;
+    oscillator.connect(gain);
+    gain.connect(audioContext.destination);
+    oscillator.start();
+
+    if (audioContext.state === 'suspended') {
+        await audioContext.resume();
+    }
+
+    oscillator.stop(audioContext.currentTime + 0.01);
+    setTimeout(() => audioContext.close().catch(() => { }), 50);
 }
 
 function resetDeviceUi() {
