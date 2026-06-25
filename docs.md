@@ -23,13 +23,17 @@
 
 `src/clips.js` выбирает клип через Twitch Helix `clips`: запрашивается до `CLIP_FETCH_LIMIT` клипов рейдера за последние `CLIP_LOOKBACK_DAYS` дней, затем отбрасываются клипы длиннее `CLIP_MAX_DURATION_SECONDS`. Если среди оставшихся есть `is_featured=true`, берется самый свежий featured-клип по `created_at`. Если featured-клипов нет, берется клип с максимальным `view_count`.
 
-На этом checkpoint `clips.js` только показывает существующий 16:9-блок клипа с превью, заголовком и статистикой. Кода реального воспроизведения клипа сейчас нет. Новое воспроизведение будет добавлено отдельно: основной путь через Twitch GraphQL/direct video URL, fallback - `https://twitch.so/pclipsmid/{slug}`.
+`src/clips.js` воспроизводит клип через обычный HTML `<video>` внутри `.clip-frame`. Основной resolver идет в Twitch GraphQL `ClipsDownloadButton` и выбирает direct URL из `videoQualities[].sourceURL`; по умолчанию берется лучшее доступное качество. Если GraphQL не вернул URL или direct video не загрузился, единственный fallback - `https://twitch.so/pclipsmid/{slug}`.
+
+Звук запрашивается сразу: `video.muted = false`, `volume = 1`, `autoplay = true`, `playsInline = true`. В обычном браузере autoplay со звуком может быть заблокирован политикой браузера; тогда overlay включает native controls на самом `<video>` и пишет предупреждение в консоль. В OBS Browser Source ожидаемый путь - автозапуск `<video>` со звуком без iframe-ограничений Twitch embed.
+
+Блок клипа сверстан вокруг 16:9-области `.clip-frame`; высота wrapper складывается из header, video frame и meta-панели. Завершение показа идет по событию `ended` у `<video>` плюс небольшой буфер. Если событие не пришло, используется timeout от длительности клипа.
 
 ## Что за что отвечает
 
 - `src/index.html` - разметка виджета для OBS: карточка рейда, аватар, ник, название стрима, категория, счетчик зрителей.
 - `src/auth.js` - Twitch Device Code Flow, refresh token, кеширование token в `localStorage`, auth UI, Helix-запросы через `fetchTwitchAPI()`.
-- `src/clips.js` - выбор клипа рейдера через Helix и временный показ клипового блока с превью; код реального воспроизведения клипа будет добавлен отдельно.
+- `src/clips.js` - выбор клипа рейдера через Helix, получение direct video URL через Twitch GraphQL, HTML `<video>` playback и fallback на `twitch.so/pclipsmid/{slug}`.
 - `src/script.js` - основная runtime-логика: подключение к Twitch-чату, обработка рейдов, очередь, показ и скрытие карточки рейда.
 - `src/config.js` - публичные настройки: Twitch `CLIENT_ID`, канал, длительность показа, тестовый режим, fallback-тексты для оффлайн-рейда.
 - `src/tmi.min.js` - vendored-библиотека TMI.js для подключения к Twitch-чату.
