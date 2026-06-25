@@ -9,23 +9,92 @@ const clipWrapper = document.querySelector('.clip-wrapper');
 const clipIframe = document.querySelector('.clip-iframe');
 const clipTitle = document.querySelector('.clip-title');
 const clipStats = document.querySelector('.clip-stats');
+const authPanel = document.querySelector('.auth-panel');
+const authStatus = document.querySelector('.auth-panel__status');
+const authLink = document.querySelector('.auth-panel__link');
+const authUrl = document.querySelector('.auth-panel__url');
+const authCode = document.querySelector('.auth-panel__code');
+const authConnectButton = document.querySelector('.auth-panel__connect');
+const authResetButton = document.querySelector('.auth-panel__reset');
 const DEFAULT_AVATAR = avatarEl.style.backgroundImage;
 const TWITCH_REQUEST_TIMEOUT = 8000;
+const TWITCH_AUTH_STORAGE_KEY = 'badge-on-raid:twitch-auth';
+const TWITCH_AUTH_SCOPES = [];
 
-// Queue system
 const raidQueue = [];
 let isRaidShowing = false;
+let chatClient = null;
+let chatStarted = false;
+let initialTriggersStarted = false;
+let twitchAuth = loadTwitchAuth();
+let devicePollAbort = null;
 
-const client = new tmi.Client({
-    connection: { secure: true, reconnect: true },
-    channels: [CHANNEL]
+authConnectButton?.addEventListener('click', () => {
+    startDeviceAuthorization().catch(error => showAuthPanel(`Ошибка авторизации: ${error.message}`, true));
 });
 
-client.on('raided', (channel, username, viewers) => {
-    initRaid(username, viewers);
+authResetButton?.addEventListener('click', () => {
+    resetAuth();
+    showAuthPanel('Токен сброшен. Нажми "Подключить Twitch", чтобы авторизоваться заново.');
 });
-client.on('connected', () => console.log('Raid overlay connected.'));
-client.connect().catch(error => console.error('Не удалось подключиться к Twitch-чату:', error));
+
+boot().catch(error => showAuthPanel(`Ошибка запуска: ${error.message}`, true));
+
+async function boot() {
+    resetDeviceUi();
+    localStorage.removeItem('twitch_token');
+
+    if (!getTwitchClientId()) {
+        showAuthPanel('Укажи CLIENT_ID в config.js. CLIENT_SECRET больше не нужен.');
+        return;
+    }
+
+    if (!twitchAuth) {
+        showAuthPanel('Нужна авторизация Twitch. Нажми "Подключить Twitch".');
+        return;
+    }
+
+    try {
+        showAuthPanel('Проверяю Twitch token...');
+        await ensureFreshToken();
+    } catch (error) {
+        resetAuth({ keepUi: true });
+        showAuthPanel(`Не удалось обновить Twitch token: ${error.message}`, true);
+        return;
+    }
+
+    hideAuthPanel();
+    startTwitchChat();
+    startInitialTriggers();
+}
+
+function startTwitchChat() {
+    if (chatStarted) return;
+
+    chatStarted = true;
+    chatClient = new tmi.Client({
+        connection: { secure: true, reconnect: true },
+        channels: [CHANNEL]
+    });
+
+    chatClient.on('raided', (channel, username, viewers) => {
+        initRaid(username, viewers);
+    });
+    chatClient.on('connected', () => console.log('Raid overlay connected.'));
+    chatClient.connect().catch(error => console.error('Не удалось подключиться к Twitch-чату:', error));
+}
+
+function startInitialTriggers() {
+    if (initialTriggersStarted) return;
+    initialTriggersStarted = true;
+
+    if (showTestRaidFromQuery()) {
+        console.log('Запущен тестовый raid из URL параметра test_channel.');
+    } else if (TEST_MODE) {
+        SHOW_TIME = TEST_SHOW_TIME;
+        showTestRaid();
+    }
+}
 
 function initRaid(username, viewers) {
     raidQueue.push({
@@ -79,7 +148,6 @@ async function processQueue() {
         console.error('Ошибка показа рейда:', error);
     } finally {
         isRaidShowing = false;
-        // Small buffer before next raid? Optional.
         setTimeout(processQueue, 100);
     }
 }
@@ -87,7 +155,6 @@ async function processQueue() {
 function showTestRaid() {
     const data = {
         username: "KaySenat",
-        // username: "NikoChan_bubububu_1337_adsad",
         viewers: 100,
         user: {
             profile_image_url: "https://static-cdn.jtvnw.net/jtv_user_pictures/bc0af20e-b4db-4205-a2ba-f6aaf2903c1d-profile_image-70x70.png"
@@ -107,7 +174,7 @@ function showTestRaid() {
             is_featured: true
         }
     };
-    // Also use queue for test
+
     raidQueue.push(data);
     processQueue();
 }
@@ -135,7 +202,6 @@ async function showRaid(data) {
     const { username, viewers, user, stream, channelInfo } = data;
 
     raid_viewers.textContent = `${viewers}`;
-    // raid_viewers.textContent = `${viewers} viewer${viewers === 1 ? '' : 's'}`;
     if (user?.profile_image_url) {
         avatarEl.style.backgroundImage = `url('${user.profile_image_url}')`;
     } else {
@@ -152,22 +218,14 @@ async function showRaid(data) {
     streamTitle.textContent = '';
     category.textContent = '';
 
-    // Wait for fade in
     await delay(600);
-
-    // Typing effect
     await typeWriter(nickname, username, 100);
     await typeWriter(streamTitle, titleText, 40);
     await typeWriter(category, categoryText, 20);
-
-    // Wait for SHOW_TIME
     await delay(SHOW_TIME);
 
     container.classList.remove('show');
-
-    // Wait for hide animation (0.5s from CSS)
-    await delay(600); // 600ms to be safe
-
+    await delay(600);
     await showClip(data.clip);
 }
 
@@ -270,22 +328,24 @@ function typeWriter(element, text, speed = 50) {
 }
 
 async function fetchTwitchAPI(endpoint) {
-    let token = await getAppToken();
-    let result = await twitchAPI(endpoint, token);
+    let token = await ensureFreshToken();
+    let result = await twitchAPI(endpoint, token.access_token);
 
     if (result.ok) return result.data;
     if (result.status !== 401 && result.status !== 403) return null;
 
-    localStorage.removeItem('twitch_token');
-    token = await getAppToken(true);
-    result = await twitchAPI(endpoint, token);
+    token = await ensureFreshToken(true);
+    result = await twitchAPI(endpoint, token.access_token);
     return result.ok ? result.data : null;
 }
 
-async function twitchAPI(endpoint, token) {
+async function twitchAPI(endpoint, accessToken) {
     try {
         const res = await fetchWithTimeout(`https://api.twitch.tv/helix/${endpoint}`, {
-            headers: { 'Client-ID': CLIENT_ID, 'Authorization': 'Bearer ' + token }
+            headers: {
+                'Client-ID': getTwitchClientId(),
+                'Authorization': 'Bearer ' + accessToken
+            }
         }, TWITCH_REQUEST_TIMEOUT);
 
         if (res.ok) {
@@ -313,67 +373,210 @@ async function twitchAPI(endpoint, token) {
     }
 }
 
-/***********************
- * АВТОМАТИЧЕСКИЙ ТОКЕН
- ***********************/
-async function getAppToken(forceRefresh = false) {
-    // проверяем localStorage
-    const saved = readSavedToken();
-    const now = Date.now() / 1000;
-    if (!forceRefresh && saved.access_token && saved.expires_at > now + 300) {
-        console.log('✅ Используем сохраненный токен');
-        return saved.access_token;
+async function startDeviceAuthorization() {
+    const clientId = getTwitchClientId();
+    if (!clientId) {
+        throw new Error('Укажи CLIENT_ID в config.js.');
     }
 
-    if (!CLIENT_SECRET) {
-        alert("⚠️ CLIENT_SECRET не указан — невозможно обновить токен.");
-        throw new Error("Нет CLIENT_SECRET");
-    }
+    resetAuth({ keepUi: true });
+    showAuthPanel('Запрашиваю device code у Twitch...');
 
-    if (!CLIENT_ID) {
-        alert("⚠️ CLIENT_ID не указан — невозможно получить Twitch token.");
-        throw new Error("Нет CLIENT_ID");
-    }
-
-    // получаем новый
-    const params = new URLSearchParams({
-        client_id: CLIENT_ID,
-        client_secret: CLIENT_SECRET,
-        grant_type: 'client_credentials'
+    const device = await twitchTokenRequest('https://id.twitch.tv/oauth2/device', {
+        client_id: clientId,
+        scopes: TWITCH_AUTH_SCOPES.join(' ')
     });
-    const res = await fetchWithTimeout('https://id.twitch.tv/oauth2/token', {
+
+    const verificationUrl = device.verification_uri_complete || device.verification_uri || '';
+    authLink.href = verificationUrl;
+    authLink.textContent = verificationUrl || 'Открыть Twitch Activate';
+    authLink.classList.remove('is-hidden');
+    authUrl.value = verificationUrl;
+    authUrl.classList.remove('is-hidden');
+    authCode.textContent = device.user_code || '';
+    authCode.classList.remove('is-hidden');
+    showAuthPanel('Открой ссылку, введи код и разреши доступ. Оверлей продолжит сам.');
+
+    devicePollAbort = new AbortController();
+    twitchAuth = await pollDeviceToken(device, devicePollAbort.signal);
+    saveTwitchAuth(twitchAuth);
+    showAuthPanel('Авторизация получена. Запускаю оверлей...');
+    await boot();
+}
+
+async function pollDeviceToken(device, signal) {
+    const startedAt = Date.now();
+    let intervalMs = Math.max(5, Number(device.interval) || 5) * 1000;
+
+    while (Date.now() - startedAt < Number(device.expires_in || 0) * 1000) {
+        await delay(intervalMs, signal);
+
+        try {
+            return await twitchTokenRequest('https://id.twitch.tv/oauth2/token', {
+                client_id: getTwitchClientId(),
+                scopes: TWITCH_AUTH_SCOPES.join(' '),
+                device_code: device.device_code,
+                grant_type: 'urn:ietf:params:oauth:grant-type:device_code'
+            });
+        } catch (error) {
+            const message = String(error.twitchMessage || error.message || '');
+
+            if (message.includes('authorization_pending')) {
+                continue;
+            }
+
+            if (message.includes('slow_down')) {
+                intervalMs += 5000;
+                continue;
+            }
+
+            throw error;
+        }
+    }
+
+    throw new Error('Device code истек. Запусти подключение еще раз.');
+}
+
+async function ensureFreshToken(forceRefresh = false) {
+    if (!twitchAuth) {
+        throw new Error('Нет Twitch token.');
+    }
+
+    const expiresAt = Number(twitchAuth.expires_at) || 0;
+    if (!forceRefresh && Date.now() < expiresAt - 60_000) {
+        return twitchAuth;
+    }
+
+    if (!twitchAuth.refresh_token) {
+        resetAuth();
+        throw new Error('Токен истек, refresh token отсутствует. Авторизуйся заново.');
+    }
+
+    const nextToken = await twitchTokenRequest('https://id.twitch.tv/oauth2/token', {
+        client_id: getTwitchClientId(),
+        grant_type: 'refresh_token',
+        refresh_token: twitchAuth.refresh_token
+    });
+    twitchAuth = nextToken;
+    saveTwitchAuth(nextToken);
+    return nextToken;
+}
+
+async function twitchTokenRequest(url, body) {
+    const res = await fetchWithTimeout(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: params
+        body: toFormBody(body)
     }, TWITCH_REQUEST_TIMEOUT);
+
+    const data = await safeJson(res);
     if (!res.ok) {
-        const body = await res.text();
-        console.warn(`Twitch token error ${res.status}:`, body);
-        throw new Error("Не удалось получить Twitch token");
+        const error = new Error(data.message || data.error_description || data.error || `Twitch ответил ${res.status}`);
+        error.twitchMessage = data.message || data.error_description || data.error;
+        throw error;
     }
-    const data = await res.json();
-    if (!data.access_token) throw new Error("Не удалось получить токен Twitch");
-    const expires_at = now + (data.expires_in || 0);
-    localStorage.setItem('twitch_token', JSON.stringify({
-        access_token: data.access_token,
-        expires_at
-    }));
-    console.log('✅ Новый Twitch token получен, действует до', new Date(expires_at * 1000).toLocaleString());
-    return data.access_token;
+
+    if (data.access_token) {
+        data.expires_at = Date.now() + Number(data.expires_in || 0) * 1000;
+    }
+
+    return data;
 }
 
-function readSavedToken() {
+function toFormBody(values) {
+    const params = new URLSearchParams();
+    Object.entries(values).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+            params.set(key, value);
+        }
+    });
+    return params;
+}
+
+function getTwitchClientId() {
+    return String(typeof CLIENT_ID === 'undefined' ? '' : CLIENT_ID).trim();
+}
+
+function loadTwitchAuth() {
     try {
-        return JSON.parse(localStorage.getItem('twitch_token') || '{}');
+        return JSON.parse(localStorage.getItem(TWITCH_AUTH_STORAGE_KEY) || 'null');
     } catch (error) {
         console.warn('Некорректный сохраненный Twitch token, очищаем cache:', error);
-        localStorage.removeItem('twitch_token');
-        return {};
+        localStorage.removeItem(TWITCH_AUTH_STORAGE_KEY);
+        return null;
     }
 }
 
-function delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+function saveTwitchAuth(auth) {
+    localStorage.setItem(TWITCH_AUTH_STORAGE_KEY, JSON.stringify(auth));
+}
+
+function resetAuth(options = {}) {
+    if (devicePollAbort) {
+        devicePollAbort.abort();
+        devicePollAbort = null;
+    }
+
+    if (chatClient) {
+        chatClient.disconnect().catch(() => {});
+        chatClient = null;
+    }
+
+    chatStarted = false;
+    twitchAuth = null;
+    localStorage.removeItem(TWITCH_AUTH_STORAGE_KEY);
+    localStorage.removeItem('twitch_token');
+
+    if (!options.keepUi) {
+        resetDeviceUi();
+    }
+}
+
+function showAuthPanel(message, isError = false) {
+    if (!authPanel) return;
+    authPanel.classList.remove('is-hidden');
+    authStatus.textContent = message;
+    authStatus.style.color = isError ? '#ff8a8a' : '';
+}
+
+function hideAuthPanel() {
+    authPanel?.classList.add('is-hidden');
+}
+
+function resetDeviceUi() {
+    authLink?.classList.add('is-hidden');
+    authUrl?.classList.add('is-hidden');
+    authCode?.classList.add('is-hidden');
+
+    if (authLink) {
+        authLink.href = '#';
+        authLink.textContent = 'Открыть Twitch Activate';
+    }
+
+    if (authUrl) authUrl.value = '';
+    if (authCode) authCode.textContent = '';
+}
+
+async function safeJson(response) {
+    const text = await response.text();
+    if (!text) return {};
+
+    try {
+        return JSON.parse(text);
+    } catch {
+        return { message: text };
+    }
+}
+
+function delay(ms, signal) {
+    return new Promise((resolve, reject) => {
+        const timeoutId = setTimeout(resolve, ms);
+
+        signal?.addEventListener('abort', () => {
+            clearTimeout(timeoutId);
+            reject(new DOMException('Aborted', 'AbortError'));
+        }, { once: true });
+    });
 }
 
 function nextFrame() {
@@ -386,11 +589,4 @@ function fetchWithTimeout(url, options, timeout) {
 
     return fetch(url, { ...options, signal: controller.signal })
         .finally(() => clearTimeout(timeoutId));
-}
-
-if (showTestRaidFromQuery()) {
-    console.log('Запущен тестовый raid из URL параметра test_channel.');
-} else if (TEST_MODE) {
-    SHOW_TIME = TEST_SHOW_TIME;
-    showTestRaid();
 }

@@ -1,20 +1,21 @@
 # Badge on Raid
 
-Статический browser source для OBS: показывает Twitch raid alert в CRT/glitch-стиле. Сборки и backend нет, OBS открывает `src/index.html` напрямую.
+Статический browser source для OBS: показывает Twitch raid alert в CRT/glitch-стиле. Сборки и backend нет.
 
 ## Основной сценарий
 
-1. `src/index.html` загружает зависимости в порядке: `secrets/secret.js`, `config.js`, `tmi.min.js`, `script.js`.
-2. `src/script.js` подключается к Twitch-чату через `tmi.Client` на канал из `CHANNEL`.
-3. При событии `raided` код сразу кладет базовые данные рейда (`username`, `viewers`) в `raidQueue`, чтобы сохранить порядок прихода рейдов.
-4. Когда рейд доходит до показа, код пробует обогатить его через Helix API:
+1. `src/index.html` загружает зависимости в порядке: `config.js`, `tmi.min.js`, `script.js`.
+2. `src/script.js` проверяет user access token Twitch. Если токена нет, показывает простую панель Twitch Device Code Flow.
+3. После авторизации код подключается к Twitch-чату через `tmi.Client` на канал из `CHANNEL`.
+4. При событии `raided` код сразу кладет базовые данные рейда (`username`, `viewers`) в `raidQueue`, чтобы сохранить порядок прихода рейдов.
+5. Когда рейд доходит до показа, код пробует обогатить его через Helix API:
    - `users?login=...` для аватара и описания рейдера;
    - `streams?user_id=...` для названия стрима и категории, если рейдер онлайн;
    - `channels?broadcaster_id=...` как fallback для названия и категории канала.
-5. Рейд показывается даже если Twitch API недоступен, чтобы alert не пропадал полностью.
-6. `showRaid()` заполняет DOM, включает `.raid-wrapper.show`, печатает ник/название/категорию через `typeWriter()`, ждет `SHOW_TIME` и скрывает карточку.
-7. После скрытия карточки, если `CLIPS_ENABLED = true`, код показывает клип рейдера в нижней трети экрана.
-8. Если данные стрима и канала не найдены, используются fallback-тексты из `config.js`.
+6. Рейд показывается даже если Twitch API недоступен, чтобы alert не пропадал полностью.
+7. `showRaid()` заполняет DOM, включает `.raid-wrapper.show`, печатает ник/название/категорию через `typeWriter()`, ждет `SHOW_TIME` и скрывает карточку.
+8. После скрытия карточки, если `CLIPS_ENABLED = true`, код показывает клип рейдера в нижней трети экрана.
+9. Если данные стрима и канала не найдены, используются fallback-тексты из `config.js`.
 
 ## Клип рейдера
 
@@ -27,10 +28,8 @@
 ## Что за что отвечает
 
 - `src/index.html` - разметка виджета для OBS: карточка рейда, аватар, ник, название стрима, категория, счетчик зрителей.
-- `src/script.js` - вся runtime-логика: подключение к Twitch, обработка рейдов, очередь, запросы Helix API с таймаутом, выбор клипа рейдера, получение/кеширование токена в `localStorage`, fallback-показ и скрытие карточки.
-- `src/config.js` - публичные настройки: канал, длительность показа, тестовый режим, fallback-тексты для оффлайн-рейда.
-- `src/secrets/secret-example.js` - шаблон для Twitch credentials.
-- `src/secrets/secret.js` - локальные `CLIENT_ID` и `CLIENT_SECRET`; файл нужен для запуска, но не должен попадать в публичный репозиторий.
+- `src/script.js` - вся runtime-логика: Twitch Device Code Flow, refresh token, подключение к Twitch-чату, обработка рейдов, очередь, запросы Helix API с таймаутом, выбор клипа рейдера, кеширование token в `localStorage`, показ и скрытие карточки.
+- `src/config.js` - публичные настройки: Twitch `CLIENT_ID`, канал, длительность показа, тестовый режим, fallback-тексты для оффлайн-рейда.
 - `src/tmi.min.js` - vendored-библиотека TMI.js для подключения к Twitch-чату.
 - `src/css/style.css` - layout и визуальный стиль карточки: размеры, цвета, позиционирование, состояние `.show`, типографика.
 - `src/css/animations.css` - keyframes и utility-классы для flicker, scanlines, glitch, glow, cursor.
@@ -40,6 +39,7 @@
 ## Настройки
 
 - `CHANNEL` - Twitch-канал, где слушается событие рейда.
+- `CLIENT_ID` - публичный Twitch application client ID. `CLIENT_SECRET` в проекте больше не используется.
 - `SHOW_TIME` - сколько миллисекунд карточка остается на экране.
 - `TEST_MODE` - включает тестовый рейд при загрузке страницы.
 - `TEST_SHOW_TIME` - длительность показа в тестовом режиме.
@@ -51,12 +51,14 @@
 
 ## Запуск
 
-1. Скопировать `src/secrets/secret-example.js` в `src/secrets/secret.js` и заполнить Twitch credentials.
-2. Указать нужный `CHANNEL` в `src/config.js`.
-3. Для проверки включить `TEST_MODE = true`; для реального использования вернуть `false`.
-4. Дважды кликнуть `start-overlay-server.bat`.
-5. Добавить `http://localhost:8765/index.html` в OBS как Browser Source.
-6. После стрима дважды кликнуть `stop-overlay-server.bat`.
+1. Указать `CLIENT_ID` и нужный `CHANNEL` в `src/config.js`.
+2. Для проверки включить `TEST_MODE = true`; для реального использования вернуть `false`.
+3. Открыть overlay через выбранный локальный или внешний HTTP-сервер.
+4. При первом запуске нажать `Подключить Twitch`, открыть Twitch Activate URL и ввести код.
+
+Twitch token сохраняется в `localStorage` OBS/browser source. Если token протух или авторизация сбилась, overlay снова покажет панель авторизации. `CLIENT_SECRET` не нужен и не должен храниться в проекте.
+
+В Twitch Developer Console для этого flow приложение должно быть public client. В `config.js` переносится только публичный Client ID.
 
 ## Тест рейда через URL
 
@@ -72,14 +74,4 @@ http://localhost:8765/index.html?test_channel=fra3a
 http://localhost:8765/index.html?test_channel=fra3a&test_viewers=42
 ```
 
-Для запуска локального сервера без консоли достаточно двойного клика:
-
-```text
-start-overlay-server.bat
-```
-
-Для остановки:
-
-```text
-stop-overlay-server.bat
-```
+Локальный сервер в проекте больше не зафиксирован: можно использовать любой удобный способ раздачи `src/` по HTTP или внешний хостинг.

@@ -5,11 +5,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Глитч-карточка CRT</title>
+    <link rel="icon" href="data:,">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/clips.css">
 </head>
 
 <body>
+    <div class="auth-panel is-hidden">
+        <div class="auth-panel__box">
+            <div class="auth-panel__title">Twitch authorization</div>
+            <div class="auth-panel__status">Загрузка...</div>
+            <a class="auth-panel__link is-hidden" href="#" target="_blank" rel="noreferrer">Открыть Twitch Activate</a>
+            <input class="auth-panel__url is-hidden" type="text" readonly aria-label="Twitch Activate URL">
+            <div class="auth-panel__code is-hidden"></div>
+            <div class="auth-panel__actions">
+                <button class="auth-panel__button auth-panel__connect" type="button">Подключить Twitch</button>
+                <button class="auth-panel__button auth-panel__reset" type="button">Сбросить токен</button>
+            </div>
+        </div>
+    </div>
     <div class="raid-wrapper">
         <div class="raid-card">
             <div class="spark"></div>
@@ -49,7 +63,7 @@
                 <span class="clip-terminal-status">READY</span>
             </div>
             <div class="clip-frame">
-                <iframe class="clip-iframe" title="Twitch clip" allow="autoplay; fullscreen" allowfullscreen></iframe>
+                <iframe class="clip-iframe" title="Twitch clip" allow="autoplay; fullscreen"></iframe>
                 <div class="clip-scanlines"></div>
             </div>
             <div class="clip-meta">
@@ -58,7 +72,6 @@
             </div>
         </div>
     </div>
-    <script src="secrets/secret.js"></script>
     <script src="config.js"></script>
     <script src="tmi.min.js"></script>
     <script src="script.js"></script>

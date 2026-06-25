@@ -1,6 +1,7 @@
 /***********************
  * НАСТРОЙКИ
  ***********************/
+const CLIENT_ID = "na1819iwrsc1igkl4yrhnmg35abmhz";
 const CHANNEL = "FRA3A"; // channel
 let SHOW_TIME = 1000; // ms
 // let SHOW_TIME = 20000; // ms
