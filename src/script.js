@@ -154,9 +154,8 @@ function showTestRaidFromQuery() {
 
     if (!username) return false;
 
-    const viewers = Math.max(1, Number.parseInt(params.get('test_viewers') || '100', 10) || 100);
     const clipOnly = isTruthyQueryParam(params.get('test_clip_only') || params.get('clip_only'));
-    initRaid(username, viewers, { clipOnly });
+    initRaid(username, 100, { clipOnly });
     return true;
 }
 

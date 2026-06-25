@@ -1,21 +1,50 @@
-# Custom raid alert for twitch 
-With glitchy terminal effect and text typing.
+# Badge on Raid
 
-To make it work:
-1. Set CLIENT_ID and CHANNEL in /src/config.js
-2. Change TEST_MODE variable in /src/config.js to "false"
-3. Serve /src with any local or external HTTP server
-4. Add the overlay URL to OBS as browser source
-5. On first launch, authorize Twitch with the device code panel
-6. ... that's basically it
+Статический raid alert для OBS в CRT/glitch-стиле: показывает карточку рейдера, данные канала и, если включено, короткий клип рейдера через обычный HTML `<video>`.
 
-## Configuration
-Use *SHOW_TIME* variable to change how long the raid will be shown (in milliseconds).
-Set *TEST_MODE* to true to test it out (automatically calls test raid on page reload and show it for very long time).
-CLIENT_SECRET is not used. The overlay uses Twitch Device Code Flow and stores the token in localStorage.
+Backend, сборка и обязательный localhost не нужны. Для обычного использования достаточно открыть `src/index.html` как локальный файл в OBS Browser Source.
+
+## Быстрый запуск
+
+1. Укажи `CLIENT_ID` и `CHANNEL` в `src/config.js`.
+2. Проверь, что `TEST_MODE = false` для реального использования.
+3. В OBS добавь `Browser Source`.
+4. Включи `Local file` и выбери `src/index.html`.
+5. При первом запуске нажми `Подключить Twitch` через режим interact, открой Twitch Activate URL в браузере (в обс он скорее всего не откроется) и разреши доступ.
+
+Twitch token сохраняется в `localStorage` OBS/browser source. Если авторизация сбросится или token протухнет, overlay снова покажет панель подключения.
+
+## Настройки
+
+- `CLIENT_ID` - публичный Twitch application client ID.
+- `CHANNEL` - канал, где overlay слушает событие рейда.
+- `SHOW_TIME` - сколько миллисекунд показывать карточку рейда.
+- `TEST_MODE` - включает тестовый рейд при загрузке страницы.
+- `TEST_SHOW_TIME` - длительность показа в тестовом режиме.
+- `CLIPS_ENABLED` - включает показ клипа после карточки рейда.
+- `CLIP_FETCH_LIMIT`, `CLIP_LOOKBACK_DAYS`, `CLIP_MAX_DURATION_SECONDS` - параметры поиска клипа.
+- `CLIP_AFTER_END_DELAY_MS` - задержка после окончания клипа.
+
+`CLIENT_SECRET` не нужен и не должен храниться в проекте.
+
+## Тест через URL
+
+Показать рейд от конкретного канала:
+
+```text
+index.html?test_channel=fra3a
+```
+
+`test_channel` - Twitch login канала, который нужно считать рейдером. Overlay сам попробует получить аватар, данные канала/стрима и клип через Twitch API.
+
+Показать только клип, без raid-карточки:
+
+```text
+index.html?test_channel=fra3a&test_clip_only=1
+```
+
+Параметр `test_clip_only=1` полезен для быстрой проверки выбора и воспроизведения клипа.
 
 ## TODO
-- [ ] description how to get keys from twitch
 
-localhost caddy
-http://localhost:8088/badge-on-raid/src/index.html?test_channel=fra3a
+- [ ] Описать, как получить Twitch Client ID.
