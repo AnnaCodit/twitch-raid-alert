@@ -27,6 +27,8 @@
 
 Блок клипа сверстан вокруг настоящей 16:9-области `.clip-frame`; высота wrapper не фиксируется вручную, а складывается из header, 16:9-окна и meta-панели. Twitch iframe создается только на время показа клипа внутри `.clip-frame`. Для autoplay важно, чтобы ancestor-цепочка iframe не получала transform-анимации и чтобы meta-панель не была дочерним элементом `.clip-terminal`: Twitch embed учитывает видимость, размер и перекрытие плеера при проверке autoplay.
 
+Длительность показа клипа считается по `clip.duration` из Helix: фактическая длительность клипа плюс `CLIP_END_BUFFER_MS`. Отсчет начинается после события `load` у Twitch iframe; если iframe не отдал `load`, отсчет стартует после fallback-таймаута `CLIP_IFRAME_LOAD_TIMEOUT_MS`. Официальный clips iframe Twitch не поддерживает interactive Player API, поэтому надежного события старта или окончания именно видео из iframe нет. Если `duration` не пришла или некорректна, используется fallback `CLIP_SHOW_TIME`.
+
 Для максимально надежного iframe fallback лучше открывать overlay в OBS через локальный HTTP-адрес, например `http://localhost:8765/index.html`, а не напрямую как `file://.../src/index.html`: Twitch embed требует корректный `parent` domain.
 
 ## Что за что отвечает
@@ -50,7 +52,9 @@
 - `STREAM_TITLE_IF_EMPTY` и `STREAM_CATEGORY_IF_EMPTY` - тексты, если у рейдера нет активного стрима.
 - `CLIPS_ENABLED` - включает показ клипа после карточки рейда.
 - `CLIP_FETCH_LIMIT`, `CLIP_LOOKBACK_DAYS`, `CLIP_MAX_DURATION_SECONDS` - параметры выборки клипа.
-- `CLIP_SHOW_TIME` - максимальная длительность показа клипа.
+- `CLIP_SHOW_TIME` - fallback-длительность показа клипа, если Twitch не вернул `duration`.
+- `CLIP_END_BUFFER_MS` - запас после `clip.duration`, чтобы iframe успел догрузиться и не исчезал слишком рано.
+- `CLIP_IFRAME_LOAD_TIMEOUT_MS` - сколько максимум ждать событие `load` от Twitch iframe перед стартом отсчета длительности.
 - `CLIP_IFRAME_MUTED` - включает mute для Twitch iframe. Значение `false` запрашивает клип со звуком, но обычный браузер может заблокировать autoplay со звуком до пользовательского жеста; OBS Browser Source обычно ведет себя мягче.
 
 ## Запуск

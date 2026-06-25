@@ -2,7 +2,7 @@
     position: fixed;
     left: 50%;
     bottom: 4vh;
-    width: min(92vw, calc((100vh - 130px) * 16 / 9), 1120px);
+    width: min(92vw, calc((100vh - 130px) * 16 / 9), 800px);
     transform: translate(-50%, 120%);
     opacity: 0;
     pointer-events: none;
@@ -64,7 +64,8 @@
     height: 9px;
     flex: 0 0 auto;
     border-radius: 50%;
-    background: var(--secondary-color);
+    background: darkred;
+    /* background: var(--secondary-color); */
     box-shadow: 0 0 12px var(--secondary-color);
 }
 
@@ -113,6 +114,7 @@
 
 .clip-meta {
     position: relative;
+    overflow: hidden;
     z-index: 1;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
@@ -129,10 +131,11 @@
 
 .clip-title {
     min-width: 0;
-    overflow: hidden;
+    /* overflow: hidden; */
     font-size: 18px;
     white-space: nowrap;
     text-overflow: ellipsis;
+    color: #FFF;
 }
 
 .clip-title::before {

@@ -277,8 +277,18 @@ async function showClip(clip) {
     clipWrapper.classList.add('show');
 
     await showClipIframe(clip);
-    await delay(CLIP_SHOW_TIME);
+    await delay(getClipDisplayTime(clip));
     await hideClip();
+}
+
+function getClipDisplayTime(clip) {
+    const durationMs = Number(clip?.duration || 0) * 1000;
+
+    if (!Number.isFinite(durationMs) || durationMs <= 0) {
+        return CLIP_SHOW_TIME;
+    }
+
+    return Math.ceil(durationMs) + CLIP_END_BUFFER_MS;
 }
 
 function resetClipPlayback() {
@@ -302,7 +312,27 @@ async function showClipIframe(clip) {
     await delay(500);
     clipIframe = createClipIframe();
     await nextFrame();
+    const iframeReady = waitForClipIframeLoad(clipIframe);
     clipIframe.src = `https://clips.twitch.tv/embed?${params.toString()}`;
+    await iframeReady;
+}
+
+function waitForClipIframeLoad(iframe) {
+    return new Promise(resolve => {
+        let isResolved = false;
+
+        const finish = () => {
+            if (isResolved) return;
+
+            isResolved = true;
+            clearTimeout(timeoutId);
+            iframe.removeEventListener('load', finish);
+            resolve();
+        };
+
+        const timeoutId = setTimeout(finish, CLIP_IFRAME_LOAD_TIMEOUT_MS);
+        iframe.addEventListener('load', finish, { once: true });
+    });
 }
 
 function createClipIframe() {
@@ -329,7 +359,7 @@ function formatClipStats(clip) {
     const views = Number(clip.view_count || 0).toLocaleString('ru-RU');
     const duration = Math.round(Number(clip.duration || 0));
     const marker = clip.is_featured ? 'FEATURED' : 'TOP_30D';
-    return `${marker} // ${views} просмотров // ${duration} сек`;
+    return `${marker} // 👀 ${views} // 🕑 ${duration}`;
 }
 
 function typeWriter(element, text, speed = 50) {
@@ -546,7 +576,7 @@ function resetAuth(options = {}) {
     }
 
     if (chatClient) {
-        chatClient.disconnect().catch(() => {});
+        chatClient.disconnect().catch(() => { });
         chatClient = null;
     }
 
