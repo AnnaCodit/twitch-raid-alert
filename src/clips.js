@@ -5,6 +5,9 @@ const CLIP_VIDEO_REQUEST_TIMEOUT = 8000;
 const CLIP_VIDEO_READY_TIMEOUT = 10000;
 const CLIP_VIDEO_FALLBACK_SHOW_TIME = 30000;
 const DEFAULT_CLIP_AFTER_END_DELAY_MS = 2000;
+const DEFAULT_CLIP_HISTORY_RETENTION_DAYS = 30;
+const CLIP_HISTORY_STORAGE_KEY = 'badge-on-raid:shown-clips';
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const CLIP_VIDEO_QUALITY = 'best';
 
 const clipWrapper = document.querySelector('.clip-wrapper');
@@ -14,6 +17,8 @@ const clipStats = document.querySelector('.clip-stats');
 const clipStatus = document.querySelector('.clip-terminal-status');
 
 let activeClipVideo = null;
+
+cleanupClipHistory();
 
 async function fetchRaiderClip(broadcasterId) {
     if (!CLIPS_ENABLED) return null;
@@ -28,7 +33,12 @@ async function fetchRaiderClip(broadcasterId) {
     });
     const clipsData = await fetchTwitchAPI(`clips?${params.toString()}`);
     const clips = clipsData?.data || [];
-    const shortClips = clips.filter(clip => Number(clip.duration || 0) <= CLIP_MAX_DURATION_SECONDS);
+    const shownClipIds = new Set(Object.keys(loadClipHistory()));
+    const shortClips = clips.filter(clip => {
+        const clipId = getClipHistoryId(clip);
+        const isShort = Number(clip.duration || 0) <= CLIP_MAX_DURATION_SECONDS;
+        return isShort && (!clipId || !shownClipIds.has(clipId));
+    });
 
     if (shortClips.length === 0) return null;
 
@@ -74,7 +84,7 @@ async function hideClip() {
 
 async function showClipVideo(clip) {
     const primaryPlayback = await resolveClipPlayback(clip);
-    const primaryVideo = createClipVideo(primaryPlayback.url);
+    const primaryVideo = createClipVideo(primaryPlayback.url, clip);
 
     try {
         const autoplayStarted = await playClipVideo(primaryVideo);
@@ -90,7 +100,7 @@ async function showClipVideo(clip) {
         resetClipVideo();
     }
 
-    const fallbackVideo = createClipVideo(getTwitchSoClipUrl(getClipSlug(clip)));
+    const fallbackVideo = createClipVideo(getTwitchSoClipUrl(getClipSlug(clip)), clip);
     const fallbackAutoplayStarted = await playClipVideo(fallbackVideo);
     setClipStatus(fallbackAutoplayStarted ? 'FALLBACK' : 'CLICK PLAY');
     await waitForClipVideoEnd(fallbackVideo, clip);
@@ -183,7 +193,7 @@ function signClipVideoUrl(sourceUrl, token) {
     return url.toString();
 }
 
-function createClipVideo(sourceUrl) {
+function createClipVideo(sourceUrl, clip) {
     resetClipVideo();
 
     const video = document.createElement('video');
@@ -202,6 +212,7 @@ function createClipVideo(sourceUrl) {
 
     clipFrame.append(video);
     activeClipVideo = video;
+    rememberClipWhenPlaying(video, clip);
     return video;
 }
 
@@ -327,6 +338,103 @@ function formatClipStats(clip) {
 
 function getClipSlug(clip) {
     return String(clip?.slug || clip?.id || '').trim();
+}
+
+function getClipHistoryId(clip) {
+    return String(clip?.id || clip?.slug || '').trim();
+}
+
+function rememberClipWhenPlaying(video, clip) {
+    const clipId = getClipHistoryId(clip);
+    if (!clipId) return;
+
+    video.addEventListener('playing', () => {
+        const history = loadClipHistory();
+        history[clipId] = Date.now();
+        saveClipHistory(history);
+    }, { once: true });
+}
+
+function cleanupClipHistory() {
+    loadClipHistory();
+}
+
+function loadClipHistory() {
+    let rawHistory;
+
+    try {
+        rawHistory = localStorage.getItem(CLIP_HISTORY_STORAGE_KEY);
+    } catch (error) {
+        console.warn('Не удалось прочитать историю клипов:', error);
+        return Object.create(null);
+    }
+
+    if (!rawHistory) {
+        return Object.create(null);
+    }
+
+    let parsedHistory;
+
+    try {
+        parsedHistory = JSON.parse(rawHistory);
+    } catch (error) {
+        console.warn('Некорректная история клипов, очищаем cache:', error);
+        saveClipHistory(Object.create(null));
+        return Object.create(null);
+    }
+
+    if (!parsedHistory || typeof parsedHistory !== 'object' || Array.isArray(parsedHistory)) {
+        saveClipHistory(Object.create(null));
+        return Object.create(null);
+    }
+
+    const now = Date.now();
+    const retentionMs = getClipHistoryRetentionDays() * DAY_IN_MS;
+    const validHistory = Object.create(null);
+    let historyChanged = false;
+
+    Object.entries(parsedHistory).forEach(([clipId, shownAt]) => {
+        const timestamp = Number(shownAt);
+        const isValid = clipId
+            && Number.isFinite(timestamp)
+            && timestamp > 0
+            && timestamp <= now
+            && now - timestamp <= retentionMs;
+
+        if (isValid) {
+            validHistory[clipId] = timestamp;
+        } else {
+            historyChanged = true;
+        }
+    });
+
+    if (historyChanged) {
+        saveClipHistory(validHistory);
+    }
+
+    return validHistory;
+}
+
+function saveClipHistory(history) {
+    try {
+        localStorage.setItem(CLIP_HISTORY_STORAGE_KEY, JSON.stringify(history));
+    } catch (error) {
+        console.warn('Не удалось сохранить историю клипов:', error);
+    }
+}
+
+function getClipHistoryRetentionDays() {
+    const retentionDays = Number(
+        typeof CLIP_HISTORY_RETENTION_DAYS === 'undefined'
+            ? DEFAULT_CLIP_HISTORY_RETENTION_DAYS
+            : CLIP_HISTORY_RETENTION_DAYS
+    );
+
+    if (!Number.isFinite(retentionDays) || retentionDays <= 0) {
+        return DEFAULT_CLIP_HISTORY_RETENTION_DAYS;
+    }
+
+    return retentionDays;
 }
 
 function getTwitchSoClipUrl(slug) {

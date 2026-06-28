@@ -21,7 +21,9 @@
 
 ## Клип рейдера
 
-`src/clips.js` выбирает клип через Twitch Helix `clips`: запрашивается до `CLIP_FETCH_LIMIT` клипов рейдера за последние `CLIP_LOOKBACK_DAYS` дней, затем отбрасываются клипы длиннее `CLIP_MAX_DURATION_SECONDS`. Если среди оставшихся есть `is_featured=true`, берется самый свежий featured-клип по `created_at`. Если featured-клипов нет, берется клип с максимальным `view_count`.
+`src/clips.js` выбирает клип через Twitch Helix `clips`: запрашивается до `CLIP_FETCH_LIMIT` клипов рейдера за последние `CLIP_LOOKBACK_DAYS` дней, затем отбрасываются клипы длиннее `CLIP_MAX_DURATION_SECONDS` и уже показанные клипы. Если среди оставшихся есть `is_featured=true`, берется самый свежий featured-клип по `created_at`. Если featured-клипов нет, берется клип с максимальным `view_count`. Дополнительные страницы Helix не запрашиваются: если первая выборка исчерпана, показ клипа пропускается.
+
+ID клипа запоминается в `localStorage` под ключом `badge-on-raid:shown-clips` только после фактического события `playing`. Поэтому ошибка загрузки или показ одного превью не исключают клип из будущей выборки. История локальна для текущего OBS/browser-профиля; записи старше `CLIP_HISTORY_RETENTION_DAYS` суток очищаются при запуске и последующих обращениях к истории.
 
 `src/clips.js` воспроизводит клип через обычный HTML `<video>` внутри `.clip-frame`. Основной resolver идет в Twitch GraphQL `ClipsDownloadButton` и выбирает direct URL из `videoQualities[].sourceURL`; по умолчанию берется лучшее доступное качество. Если GraphQL не вернул URL или direct video не загрузился, единственный fallback - `https://twitch.so/pclipsmid/{slug}`.
 
@@ -53,6 +55,7 @@
 - `CLIPS_ENABLED` - включает показ клипа после карточки рейда.
 - `CLIP_FETCH_LIMIT`, `CLIP_LOOKBACK_DAYS`, `CLIP_MAX_DURATION_SECONDS` - параметры выборки клипа.
 - `CLIP_AFTER_END_DELAY_MS` - сколько миллисекунд держать клиповый блок на экране после окончания `<video>`.
+- `CLIP_HISTORY_RETENTION_DAYS` - сколько суток не повторять уже показанный клип.
 
 ## Запуск
 

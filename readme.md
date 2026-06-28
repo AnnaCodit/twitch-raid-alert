@@ -24,6 +24,7 @@ Twitch token сохраняется в `localStorage` OBS/browser source. Есл
 - `CLIPS_ENABLED` - включает показ клипа после карточки рейда.
 - `CLIP_FETCH_LIMIT`, `CLIP_LOOKBACK_DAYS`, `CLIP_MAX_DURATION_SECONDS` - параметры поиска клипа.
 - `CLIP_AFTER_END_DELAY_MS` - задержка после окончания клипа.
+- `CLIP_HISTORY_RETENTION_DAYS` - сколько суток не повторять уже показанный клип.
 
 `CLIENT_SECRET` не нужен и не должен храниться в проекте.
 
